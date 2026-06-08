@@ -176,7 +176,12 @@
       <div class="input-group">
         <label>Monthly SRS Contribution (SGD)</label>
         <input type="number" id="mSRS" placeholder="e.g. 1275" step="100">
-        <div class="hint">Stops at retirement</div>
+        <div class="hint">Grows at 5%/yr</div>
+      </div>
+      <div class="input-group">
+        <label>Stop SRS Contribution — Year</label>
+        <input type="number" id="srsStopYear" placeholder="e.g. 2030" min="2024" max="2075">
+        <div class="hint">Age <span id="srsStopAge">—</span> · defaults to retirement year if blank</div>
       </div>
       <div class="input-group">
         <label>Monthly CPF OA Contribution (SGD)</label>
@@ -344,7 +349,7 @@ function simulate(params, scenario) {
     liquid0, srs0, oa0, sa0,
     mLiquid, mSRS, mOA, mSA, mMortgage,
     mExpense, mExpenseChubby, mBarista,
-    baristaStopYear, lumpSums,
+    baristaStopYear, srsStopYear, lumpSums,
     frs2025, cpflifeRate, cpflifeEscalating
   } = params;
   // Build lump sum lookup: year → net amount
@@ -419,7 +424,7 @@ function simulate(params, scenario) {
     if (year < YR_RETIRE) {
       // Accumulation — contributions, no lifestyle draw
       liquid += mLiquid;
-      srs    += mSRS;
+      if (year < (srsStopYear || YR_RETIRE) || (year === (srsStopYear || YR_RETIRE) && month === 1)) srs += mSRS;
       sa     += (mSA || 0);
       const netOA = mOA - mMortgage;
       oa += netOA;
@@ -497,15 +502,17 @@ function simulate(params, scenario) {
 
 function findFireNumber(params, scenario) {
   // First: project SRS/OA/SA to retirement via accumulation only
-  const { birthYear, retireYear, srs0, oa0, sa0, mSRS, mOA, mSA, mMortgage } = params;
+  const { birthYear, retireYear, srs0, oa0, sa0, mSRS, mOA, mSA, mMortgage, srsStopYear } = params;
   const SIM_START = new Date().getFullYear();
 
   let srs = srs0, oa = oa0, sa = sa0;
   const gS = 1 + monthlyRate(0.05), gOA = 1 + monthlyRate(0.025), gSA = 1 + monthlyRate(0.04);
 
   const monthsPre = (retireYear - SIM_START) * 12;
+  const SRS_STOP_YR = srsStopYear || retireYear;
   for (let m = 0; m < monthsPre; m++) {
-    srs += mSRS;
+    const loopYear = SIM_START + Math.floor(m / 12);
+    if (loopYear < SRS_STOP_YR) srs += mSRS;
     sa  += (mSA || 0);
     const netOA = mOA - mMortgage;
     oa += netOA;
@@ -597,7 +604,7 @@ function fmtN(n) { return Math.round(n).toLocaleString(); }
 
 const STORAGE_KEY = 'fire_calc_profile';
 const FIELD_IDS   = ['dob','retireYear','liquid0','srs0','oa0','sa0',
-                     'mLiquid','mSRS','mOA','mSA','mMortgage',
+                     'mLiquid','mSRS','srsStopYear','mOA','mSA','mMortgage',
                      'mExpense','mExpenseChubby','mBarista','baristaStopYear',
                      'frs2025','cpflifePlan'];
 
@@ -693,8 +700,10 @@ function getParams() {
   const dob = new Date(document.getElementById('dob').value);
   const birthYear = dob.getFullYear();
   const baristaStopYear = parseInt(document.getElementById('baristaStopYear').value);
-  // Update age hint
+  const srsStopYear = parseInt(document.getElementById('srsStopYear').value);
+  // Update age hints
   document.getElementById('baristaStopAge').textContent = baristaStopYear - birthYear;
+  if (!isNaN(srsStopYear) && !isNaN(birthYear)) document.getElementById('srsStopAge').textContent = srsStopYear - birthYear;
   const planHints = { standard: 'Fixed payout from age 65', escalating: 'Starts lower, grows +2%/yr from age 65', basic: 'Fixed payout, preserves bequest' };
   document.getElementById('cpflifePlanHint').textContent = planHints[document.getElementById('cpflifePlan').value];
   return {
@@ -706,6 +715,7 @@ function getParams() {
     sa0:             parseFloat(document.getElementById('sa0').value),
     mLiquid:         parseFloat(document.getElementById('mLiquid').value),
     mSRS:            parseFloat(document.getElementById('mSRS').value),
+    srsStopYear:     srsStopYear || parseInt(document.getElementById('retireYear').value),
     mOA:             parseFloat(document.getElementById('mOA').value),
     mSA:             parseFloat(document.getElementById('mSA').value) || 0,
     mMortgage:       parseFloat(document.getElementById('mMortgage').value),
@@ -773,6 +783,7 @@ function recalc() {
   const rows = [
     ['Retirement Year', p.retireYear + ' (age ' + (p.retireYear - p.birthYear) + ')', 'ok'],
     ['OA Depletes', meta.oaDepletedYear ? meta.oaDepletedYear + ' — mortgage shifts to liquid' : 'Before retirement', 'warn'],
+    ['Stop SRS Contributions', (p.srsStopYear || p.retireYear) + ' (age ' + ((p.srsStopYear || p.retireYear) - p.birthYear) + ')', 'warn'],
     ['Stop Barista Income', p.baristaStopYear + ' (age ' + (p.baristaStopYear - p.birthYear) + ')', 'warn'],
     ['CPF OA+SA → RA (age 55)', meta.YR_RA + ' · FRS ' + fmt(meta.FRS_AT_55), ''],
     ['SRS Withdrawal Starts (age 62)', meta.YR_SRS_ST + ' · spread over 10 yrs', ''],
@@ -919,6 +930,7 @@ function buildChartData(p, fireB, fireC) {
   const events = [
     { year: p.retireYear,         label: 'Retire',   color: 'rgba(82,217,160,0.6)' },
     { year: p.birthYear + 55,     label: 'Age 55',   color: 'rgba(108,143,255,0.5)' },
+    { year: p.srsStopYear || p.retireYear, label: 'Stop SRS', color: 'rgba(160,120,255,0.5)' },
     { year: p.baristaStopYear,    label: 'Stop Barista', color: 'rgba(245,166,35,0.5)' },
     { year: p.birthYear + 65,     label: 'Age 65',   color: 'rgba(224,92,92,0.5)' },
   ];
