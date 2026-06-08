@@ -20,8 +20,8 @@
     --barista: #52d9a0;
     --chubby: #6c8fff;
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; font-size: 14px; line-height: 1.6; }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; font-size: 14px; line-height: 1.6; -webkit-text-size-adjust: 100%; }
 
   .page { max-width: 1100px; margin: 0 auto; padding: 24px 20px; }
 
@@ -112,9 +112,67 @@
   .lump-row .lump-label { font-size:11px; color:var(--muted); white-space:nowrap; }
   .lump-row .del-btn { background:transparent; border:none; color:var(--danger); cursor:pointer; font-size:16px; padding:0 4px; line-height:1; }
 
+  /* ── MOBILE ─────────────────────────────────────────────────────────── */
   @media (max-width: 800px) {
     .grid2 { grid-template-columns: 1fr; }
-    .fire-cards { grid-template-columns: 1fr; }
+    .fire-cards { grid-template-columns: 1fr 1fr; }
+  }
+
+  @media (max-width: 480px) {
+    /* Prevent iOS zoom — inputs must be ≥16px */
+    .input-group input, .input-group select, .lump-row input {
+      font-size: 16px !important;
+      padding: 11px 12px;
+    }
+
+    /* Bigger touch targets */
+    button, .tab-btn, .recalc-btn {
+      min-height: 44px;
+    }
+    .recalc-btn { font-size: 15px; padding: 13px; }
+    .tab-btn { padding: 9px 14px; font-size: 13px; }
+
+    /* Layout */
+    .page { padding: 16px 14px; }
+    body { font-size: 13px; }
+    h1 { font-size: 20px; }
+    .subtitle { font-size: 12px; margin-bottom: 20px; }
+
+    /* Fire cards stack */
+    .fire-cards { grid-template-columns: 1fr; gap: 10px; }
+    .fire-number { font-size: 22px; }
+
+    /* Info row wraps */
+    .info-row { flex-wrap: wrap; }
+    .info-box { min-width: calc(50% - 6px); }
+
+    /* Milestone list: let value wrap below key */
+    .milestone-list li { flex-direction: column; gap: 2px; }
+    .milestone-list .mv { font-size: 12px; }
+
+    /* Tab bar scrolls horizontally */
+    .tab-bar { overflow-x: auto; -webkit-overflow-scrolling: touch; flex-wrap: nowrap;
+      padding-bottom: 4px; }
+    .tab-bar::-webkit-scrollbar { display: none; }
+    .tab-btn { white-space: nowrap; flex-shrink: 0; }
+
+    /* Table: nudge scroll hint */
+    .table-wrap { -webkit-overflow-scrolling: touch; }
+    table { font-size: 11px; }
+    th, td { padding: 6px 8px; }
+
+    /* Lump sum rows stack */
+    .lump-row { flex-wrap: wrap; }
+    .lump-row input { min-width: 80px; }
+
+    /* Panel */
+    .panel { padding: 16px; border-radius: 10px; }
+
+    /* Chart shorter on phone */
+    canvas { max-height: 260px !important; }
+
+    /* Save/Clear buttons shrink gracefully */
+    #saveBtn, #saveBtn + button { padding: 8px 10px; font-size: 11px; }
   }
 </style>
 </head>
@@ -289,7 +347,9 @@
             <button class="tab-btn"         id="ctab-break" onclick="switchChartTab('breakdown',this)">🥧 Asset Breakdown</button>
           </div>
         </div>
-        <canvas id="fireChart" style="max-height:320px"></canvas>
+        <div style="position:relative;height:320px;max-height:60vw">
+          <canvas id="fireChart"></canvas>
+        </div>
       </div>
 
       <!-- MILESTONES -->
@@ -981,6 +1041,7 @@ function renderBreakdownChart(data) {
 function chartOptions(yLabel, events) {
   return {
     responsive: true,
+    maintainAspectRatio: false,
     interaction: { mode: 'index', intersect: false },
     animation: { duration: 400 },
     plugins: {
