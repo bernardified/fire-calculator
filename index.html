@@ -254,7 +254,12 @@
       <div class="input-group">
         <label>Monthly Mortgage from OA (SGD)</label>
         <input type="number" id="mMortgage" placeholder="e.g. 1500" step="100">
-        <div class="hint">Fixed nominal · ends at age 65</div>
+        <div class="hint">Fixed nominal · deducted from CPF OA</div>
+      </div>
+      <div class="input-group">
+        <label>Mortgage Payment End Year</label>
+        <input type="number" id="mortgageEndYear" placeholder="e.g. 2045" min="2026" max="2075">
+        <div class="hint">Age <span id="mortgageEndAge">—</span> · defaults to age 65 if blank</div>
       </div>
 
       <div class="section-divider">Expenses &amp; Income</div>
@@ -325,7 +330,7 @@
       <!-- INFO BOXES -->
       <div class="info-row">
         <div class="info-box">
-          <div class="label">Projected Liquid @ Retirement</div>
+          <div class="label">Projected Liquid Entering Retirement</div>
           <div class="val" id="projLiquid">—</div>
         </div>
         <div class="info-box">
@@ -407,7 +412,7 @@ function simulate(params, scenario) {
   const {
     birthYear, retireYear,
     liquid0, srs0, oa0, sa0,
-    mLiquid, mSRS, mOA, mSA, mMortgage,
+    mLiquid, mSRS, mOA, mSA, mMortgage, mortgageEndYear,
     mExpense, mExpenseChubby, mBarista,
     baristaStopYear, srsStopYear, lumpSums,
     frs2025, cpflifeRate, cpflifeEscalating
@@ -486,19 +491,19 @@ function simulate(params, scenario) {
       liquid += mLiquid;
       if (year < (srsStopYear || YR_RETIRE) || (year === (srsStopYear || YR_RETIRE) && month === 1)) srs += mSRS;
       sa     += (mSA || 0);
-      const netOA = mOA - mMortgage;
+      const netOA = mOA - (year <= mortgageEndYear ? mMortgage : 0);
       oa += netOA;
       if (oa < 0) { oa = 0; oaDepleted = true; }
       // No drawdown during accumulation
     } else {
       // Post-retirement
       let mortgageCash = 0;
-      if (age < 65 && !oaDepleted && oa > 0) {
+      if (year <= mortgageEndYear && !oaDepleted && oa > 0) {
         const draw = Math.min(oa, mMortgage);
         oa -= draw;
         mortgageCash = mMortgage - draw;
         if (oa <= 0) { oa = 0; oaDepleted = true; if (!oaDepletedYear) oaDepletedYear = year; }
-      } else if (age < 65) {
+      } else if (year <= mortgageEndYear) {
         mortgageCash = mMortgage;
         if (!oaDepletedYear && oaDepleted) oaDepletedYear = year;
       }
@@ -560,31 +565,22 @@ function simulate(params, scenario) {
 
 // ── FIRE NUMBER (binary search on liquid at retirement) ─────────────────────
 
-function findFireNumber(params, scenario) {
-  // First: project SRS/OA/SA to retirement via accumulation only
-  const { birthYear, retireYear, srs0, oa0, sa0, mSRS, mOA, mSA, mMortgage, srsStopYear } = params;
+function findFireNumber(params, scenario, simResult) {
+  // Use SRS/OA/SA from the simulate() result at end of pre-retirement year.
+  // This guarantees the binary search tests the same asset trajectory shown in the table,
+  // eliminating divergence from a separate accumulation loop.
+  const { retireYear } = params;
   const SIM_START = new Date().getFullYear();
-
-  let srs = srs0, oa = oa0, sa = sa0;
-  const gS = 1 + monthlyRate(0.05), gOA = 1 + monthlyRate(0.025), gSA = 1 + monthlyRate(0.04);
-
-  const monthsPre = (retireYear - SIM_START) * 12;
-  const SRS_STOP_YR = srsStopYear || retireYear;
-  for (let m = 0; m < monthsPre; m++) {
-    const loopYear = SIM_START + Math.floor(m / 12);
-    if (loopYear < SRS_STOP_YR) srs += mSRS;
-    sa  += (mSA || 0);
-    const netOA = mOA - mMortgage;
-    oa += netOA;
-    if (oa < 0) oa = 0;
-    srs *= gS; oa *= gOA; sa *= gSA;
-  }
+  const preY = simResult && simResult[retireYear - 1];
+  const srs = preY ? preY.srs : params.srs0;
+  const oa  = preY ? preY.oa  : params.oa0;
+  const sa  = preY ? preY.sa  : params.sa0;
 
   // Binary search on liquid at retirement
   function test(L) {
     const p2 = { ...params, liquid0: L, srs0: srs, oa0: oa, sa0: sa, mLiquid: 0, mSRS: 0, mOA: 0 };
     // Manually simulate post-retirement only
-    const { birthYear, retireYear, mMortgage, mExpense, mExpenseChubby, mBarista, baristaStopYear, lumpSums, frs2025, cpflifeRate, cpflifeEscalating } = params;
+    const { birthYear, retireYear, mMortgage, mortgageEndYear, mExpense, mExpenseChubby, mBarista, baristaStopYear, lumpSums, frs2025, cpflifeRate, cpflifeEscalating } = params;
     const lumpMap2 = {};
     (lumpSums || []).forEach(({year, amount}) => { lumpMap2[year] = (lumpMap2[year] || 0) + amount; });
     const baseExpense = scenario === 'chubby' ? mExpenseChubby : mExpense;
@@ -621,10 +617,10 @@ function findFireNumber(params, scenario) {
       if (cpflifeEscalating && cpfMo>0 && year>YR_CPFLIFE && month===1) cpfMo*=1.02;
 
       let mortCash=0;
-      if (age<65 && !oaDep && _oa>0) {
+      if (year<=mortgageEndYear && !oaDep && _oa>0) {
         const d=Math.min(_oa,mMortgage); _oa-=d; mortCash=mMortgage-d;
         if(_oa<=0){_oa=0;oaDep=true;}
-      } else if (age<65) mortCash=mMortgage;
+      } else if (year<=mortgageEndYear) mortCash=mMortgage;
 
       let srsInc=0;
       if(srsDr>0&&_srs>0&&year<=YR_SRS_END){srsInc=Math.min(srsDr,_srs);_srs-=srsInc;}
@@ -664,7 +660,7 @@ function fmtN(n) { return Math.round(n).toLocaleString(); }
 
 const STORAGE_KEY = 'fire_calc_profile';
 const FIELD_IDS   = ['dob','retireYear','liquid0','srs0','oa0','sa0',
-                     'mLiquid','mSRS','srsStopYear','mOA','mSA','mMortgage',
+                     'mLiquid','mSRS','srsStopYear','mOA','mSA','mMortgage','mortgageEndYear',
                      'mExpense','mExpenseChubby','mBarista','baristaStopYear',
                      'frs2025','cpflifePlan'];
 
@@ -761,9 +757,12 @@ function getParams() {
   const birthYear = dob.getFullYear();
   const baristaStopYear = parseInt(document.getElementById('baristaStopYear').value);
   const srsStopYear = parseInt(document.getElementById('srsStopYear').value);
+  const rawMortgageEnd = parseInt(document.getElementById('mortgageEndYear').value);
+  const mortgageEndYear = isNaN(rawMortgageEnd) ? birthYear + 64 : rawMortgageEnd;
   // Update age hints
   document.getElementById('baristaStopAge').textContent = baristaStopYear - birthYear;
   if (!isNaN(srsStopYear) && !isNaN(birthYear)) document.getElementById('srsStopAge').textContent = srsStopYear - birthYear;
+  if (!isNaN(birthYear)) document.getElementById('mortgageEndAge').textContent = isNaN(rawMortgageEnd) ? '65 (default)' : mortgageEndYear - birthYear;
   const planHints = { standard: 'Fixed payout from age 65', escalating: 'Starts lower, grows +2%/yr from age 65', basic: 'Fixed payout, preserves bequest' };
   document.getElementById('cpflifePlanHint').textContent = planHints[document.getElementById('cpflifePlan').value];
   return {
@@ -779,6 +778,7 @@ function getParams() {
     mOA:             parseFloat(document.getElementById('mOA').value),
     mSA:             parseFloat(document.getElementById('mSA').value) || 0,
     mMortgage:       parseFloat(document.getElementById('mMortgage').value),
+    mortgageEndYear,
     mExpense:        parseFloat(document.getElementById('mExpense').value),
     mExpenseChubby:  parseFloat(document.getElementById('mExpenseChubby').value),
     mBarista:        parseFloat(document.getElementById('mBarista').value),
@@ -810,11 +810,24 @@ function recalc() {
   lastChubby  = simulate(p, 'chubby');
 
   const meta = lastBarista._meta;
-  const fireB = findFireNumber(p, 'barista');
-  const fireC = findFireNumber(p, 'chubby');
+  const fireB = findFireNumber(p, 'barista', lastBarista);
+  const fireC = findFireNumber(p, 'chubby',  lastChubby);
   lastFireB = fireB; lastFireC = fireC; lastParams = p;
 
-  const projLiq = lastBarista[p.retireYear] ? lastBarista[p.retireYear].liquid : 0;
+  // projLiq = liquid at START of retirement (end of last pre-retirement year)
+  // This matches the timing of the FIRE number (minimum liquid needed at start of retirement)
+  const projLiq = lastBarista[p.retireYear - 1] ? lastBarista[p.retireYear - 1].liquid : 0;
+
+  // ON TRACK / SHORTFALL: driven by simulation result (ground truth).
+  // The simulation uses the exact same parameters as the table, so this is always consistent.
+  const baristaGood = !Object.keys(lastBarista)
+    .some(y => parseInt(y) >= p.retireYear && lastBarista[y].liquid < 0);
+  const chubbyGood  = !Object.keys(lastChubby)
+    .some(y => parseInt(y) >= p.retireYear && lastChubby[y].liquid  < 0);
+
+  // Gap = how much more (or less) liquid you have vs the FIRE number target
+  const gapB = projLiq - fireB;
+  const gapC = projLiq - fireC;
 
   // Fire numbers
   document.getElementById('fireBarista').textContent = fmt(fireB);
@@ -826,16 +839,13 @@ function recalc() {
     : '$' + Math.round(meta.cpflifeMo).toLocaleString() + '/mo fixed';
   document.getElementById('cpflifePayout').textContent = cpfLifeLabel;
 
-  const gapB = projLiq - fireB;
-  const gapC = projLiq - fireC;
-
   const gbEl = document.getElementById('gapBarista');
-  gbEl.textContent  = (gapB >= 0 ? '✓ ON TRACK +' : '✗ SHORTFALL ') + fmt(Math.abs(gapB));
-  gbEl.className    = 'fire-gap ' + (gapB >= 0 ? 'ok' : 'miss');
+  gbEl.textContent  = (baristaGood ? '✓ ON TRACK +' : '✗ SHORTFALL ') + fmt(Math.abs(gapB));
+  gbEl.className    = 'fire-gap ' + (baristaGood ? 'ok' : 'miss');
 
   const gcEl = document.getElementById('gapChubby');
-  gcEl.textContent  = (gapC >= 0 ? '✓ ON TRACK +' : '✗ SHORTFALL ') + fmt(Math.abs(gapC));
-  gcEl.className    = 'fire-gap ' + (gapC >= 0 ? 'ok' : 'miss');
+  gcEl.textContent  = (chubbyGood ? '✓ ON TRACK +' : '✗ SHORTFALL ') + fmt(Math.abs(gapC));
+  gcEl.className    = 'fire-gap ' + (chubbyGood ? 'ok' : 'miss');
 
   // Milestones
   const ml = document.getElementById('milestones');
@@ -847,7 +857,8 @@ function recalc() {
     ['Stop Barista Income', p.baristaStopYear + ' (age ' + (p.baristaStopYear - p.birthYear) + ')', 'warn'],
     ['CPF OA+SA → RA (age 55)', meta.YR_RA + ' · FRS ' + fmt(meta.FRS_AT_55), ''],
     ['SRS Withdrawal Starts (age 62)', meta.YR_SRS_ST + ' · spread over 10 yrs', ''],
-    ['CPF LIFE + Mortgage Ends (age 65)', meta.YR_CPFLIFE + ' · +$' + Math.round(meta.cpflifeMo).toLocaleString() + '/mo income', 'ok'],
+    ['Mortgage Ends', p.mortgageEndYear + ' (age ' + (p.mortgageEndYear - p.birthYear) + ')', 'warn'],
+    ['CPF LIFE Starts (age 65)', meta.YR_CPFLIFE + ' · +$' + Math.round(meta.cpflifeMo).toLocaleString() + '/mo income', 'ok'],
     ['SRS Fully Withdrawn (age 72)', (p.birthYear + 72) + '', ''],
   ];
   rows.forEach(([k,v,cls]) => {
