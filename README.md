@@ -4,7 +4,7 @@ An interactive, browser-based FIRE (Financial Independence, Retire Early) calcul
 
 ## Live Demo
 
-Hosted on GitHub Pages: `https://<your-username>.github.io/<repo-name>/`
+Hosted on GitHub Pages: `https://bernardified.github.io/fire-calculator`
 
 ## Features
 
