@@ -179,7 +179,7 @@
 <body>
 <div class="page">
   <h1>🔥 FIRE Calculator</h1>
-  <p class="subtitle">Barista &amp; Chubby FIRE planning · Singapore CPF · 3.5% SWR</p>
+  <p class="subtitle">Barista &amp; Chubby FIRE planning · Singapore CPF · configurable growth rate</p>
 
   <div class="grid2">
 
@@ -206,9 +206,14 @@
 
       <div class="section-divider">Current Assets</div>
       <div class="input-group">
+        <label>Portfolio Growth Rate (% per year)</label>
+        <input type="number" id="portfolioGrowthRate" placeholder="e.g. 7" step="0.5" min="1" max="15" value="7">
+        <div class="hint">Expected annual return on your liquid investments. VWRA/CSPX: 7–8%. Balanced: 5–6%. The single biggest lever on your FIRE number — at 5% you need ~65% more than at 7%.</div>
+      </div>
+      <div class="input-group">
         <label>Liquid Assets (SGD)</label>
         <input type="number" id="liquid0" placeholder="e.g. 200000" step="1000">
-        <div class="hint">Investments, savings — grows at 5%/yr</div>
+        <div class="hint">Investments, savings — grows at your portfolio growth rate above</div>
       </div>
       <div class="input-group">
         <label>SRS Balance (SGD)</label>
@@ -341,6 +346,10 @@
           <div class="label">Est. CPF LIFE Payout</div>
           <div class="val" id="cpflifePayout">—</div>
         </div>
+        <div class="info-box">
+          <div class="label">Barista Income at Retirement (inflation-adj.)</div>
+          <div class="val" id="baristaInflAdj">—</div>
+        </div>
       </div>
 
       <!-- CHART -->
@@ -415,14 +424,15 @@ function simulate(params, scenario) {
     mLiquid, mSRS, mOA, mSA, mMortgage, mortgageEndYear,
     mExpense, mExpenseChubby, mBarista,
     baristaStopYear, srsStopYear, lumpSums,
-    frs2025, cpflifeRate, cpflifeEscalating
+    frs2025, cpflifeRate, cpflifeEscalating,
+    portfolioGrowthRate
   } = params;
   // Build lump sum lookup: year → net amount
   const lumpMap = {};
   (lumpSums || []).forEach(({year, amount}) => { lumpMap[year] = (lumpMap[year] || 0) + amount; });
 
   const SIM_START = new Date().getFullYear();
-  const SIM_END   = birthYear + 85;
+  const SIM_END   = birthYear + 95;
 
   const baseExpense = scenario === 'chubby' ? mExpenseChubby : mExpense;
 
@@ -433,12 +443,12 @@ function simulate(params, scenario) {
   const YR_CPFLIFE = birthYear + 65;
   const FRS_AT_55  = frs2025 * Math.pow(1.035, YR_RA - 2025);
 
-  const gL  = 1 + monthlyRate(0.05);
+  const gL  = 1 + monthlyRate(portfolioGrowthRate || 0.07);
   const gS  = 1 + monthlyRate(0.05);
   const gOA = 1 + monthlyRate(0.025);
   const gSA = 1 + monthlyRate(0.04);
   const gRA = 1 + monthlyRate(0.04);
-  const gEX = 1 + monthlyRate(0.05);
+  const gEX = 1 + monthlyRate(portfolioGrowthRate || 0.07);
   const gI  = 1 + monthlyRate(0.03);
 
   let liquid = liquid0, srs = srs0, oa = oa0, sa = sa0, ra = 0, excess = 0;
@@ -584,15 +594,16 @@ function findFireNumber(params, scenario, simResult) {
     const lumpMap2 = {};
     (lumpSums || []).forEach(({year, amount}) => { lumpMap2[year] = (lumpMap2[year] || 0) + amount; });
     const baseExpense = scenario === 'chubby' ? mExpenseChubby : mExpense;
-    const SIM_END   = birthYear + 85;
+    const SIM_END   = birthYear + 95;
     const YR_RA     = birthYear + 55;
     const YR_SRS_ST = birthYear + 62;
     const YR_SRS_END = birthYear + 72;
     const YR_CPFLIFE = birthYear + 65;
     const FRS_AT_55  = frs2025 * Math.pow(1.035, YR_RA - 2025);
 
-    const gL = 1+monthlyRate(0.05), gS=1+monthlyRate(0.05), gOA=1+monthlyRate(0.025),
-          gSA=1+monthlyRate(0.04), gRA=1+monthlyRate(0.04), gEX=1+monthlyRate(0.05),
+    const _pgr = params.portfolioGrowthRate || 0.07;
+    const gL = 1+monthlyRate(_pgr), gS=1+monthlyRate(0.05), gOA=1+monthlyRate(0.025),
+          gSA=1+monthlyRate(0.04), gRA=1+monthlyRate(0.04), gEX=1+monthlyRate(_pgr),
           gI=1+monthlyRate(0.03);
 
     let liq = L, _srs = srs, _oa = oa, _sa = sa, _ra = 0, _ex = 0;
@@ -659,7 +670,7 @@ function fmtN(n) { return Math.round(n).toLocaleString(); }
 // ── SAVE / LOAD PROFILE (localStorage) ──────────────────────────────────────
 
 const STORAGE_KEY = 'fire_calc_profile';
-const FIELD_IDS   = ['dob','retireYear','liquid0','srs0','oa0','sa0',
+const FIELD_IDS   = ['dob','retireYear','portfolioGrowthRate','liquid0','srs0','oa0','sa0',
                      'mLiquid','mSRS','srsStopYear','mOA','mSA','mMortgage','mortgageEndYear',
                      'mExpense','mExpenseChubby','mBarista','baristaStopYear',
                      'frs2025','cpflifePlan'];
@@ -767,8 +778,9 @@ function getParams() {
   document.getElementById('cpflifePlanHint').textContent = planHints[document.getElementById('cpflifePlan').value];
   return {
     birthYear,
-    retireYear:      parseInt(document.getElementById('retireYear').value),
-    liquid0:         parseFloat(document.getElementById('liquid0').value),
+    retireYear:           parseInt(document.getElementById('retireYear').value),
+    portfolioGrowthRate:  (parseFloat(document.getElementById('portfolioGrowthRate').value) || 7) / 100,
+    liquid0:              parseFloat(document.getElementById('liquid0').value),
     srs0:            parseFloat(document.getElementById('srs0').value),
     oa0:             parseFloat(document.getElementById('oa0').value),
     sa0:             parseFloat(document.getElementById('sa0').value),
@@ -834,6 +846,8 @@ function recalc() {
   document.getElementById('fireChubby').textContent  = fmt(fireC);
   document.getElementById('projLiquid').textContent  = fmt(projLiq);
   document.getElementById('frsAt55').textContent     = fmt(meta.FRS_AT_55);
+  const baristaInflAdj = (p.mBarista || 0) * Math.pow(1.03, p.retireYear - new Date().getFullYear());
+  document.getElementById('baristaInflAdj').textContent = fmt(baristaInflAdj) + '/mo';
   const cpfLifeLabel = p.cpflifeEscalating
     ? '$' + Math.round(meta.cpflifeMo).toLocaleString() + '/mo initial (+2%/yr)'
     : '$' + Math.round(meta.cpflifeMo).toLocaleString() + '/mo fixed';
@@ -885,7 +899,7 @@ function renderTable(sc) {
   const p = getParams();
 
   const SIM_START = new Date().getFullYear();
-  const SIM_END   = p.birthYear + 85;
+  const SIM_END   = p.birthYear + 95;
   const tbody = document.getElementById('projBody');
   tbody.innerHTML = '';
 
@@ -897,7 +911,7 @@ function renderTable(sc) {
     if (!r) continue;
 
     // Only show certain years to keep table readable
-    const isKey = [SIM_START, p.retireYear, meta.YR_RA, meta.YR_SRS_ST, meta.YR_CPFLIFE, p.birthYear+72, p.birthYear+75, p.birthYear+80, p.birthYear+85].includes(y)
+    const isKey = [SIM_START, p.retireYear, meta.YR_RA, meta.YR_SRS_ST, meta.YR_CPFLIFE, p.birthYear+72, p.birthYear+75, p.birthYear+80, p.birthYear+85, p.birthYear+90, p.birthYear+95].includes(y)
       || (y % 5 === 0)
       || (meta.oaDepletedYear && y === meta.oaDepletedYear);
     if (!isKey) continue;
@@ -979,7 +993,7 @@ const eventLinesPlugin = {
 Chart.register(eventLinesPlugin);
 
 function buildChartData(p, fireB, fireC) {
-  const SIM_END = p.birthYear + 85;
+  const SIM_END = p.birthYear + 95;
   const years = [];
   const bLiquid = [], cLiquid = [], bTotal = [], cTotal = [];
   const bSRS = [], bOA = [], bSA = [], bRA = [];
