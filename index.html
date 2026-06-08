@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FIRE Calculator — Bernard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #222637;
+    --border: #2e3248;
+    --accent: #6c8fff;
+    --accent2: #52d9a0;
+    --warn: #f5a623;
+    --danger: #e05c5c;
+    --text: #e2e8f0;
+    --muted: #8892a4;
+    --barista: #52d9a0;
+    --chubby: #6c8fff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; font-size: 14px; line-height: 1.6; }
+
+  .page { max-width: 1100px; margin: 0 auto; padding: 24px 20px; }
+
+  h1 { font-size: 22px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 28px; }
+
+  .grid2 { display: grid; grid-template-columns: 380px 1fr; gap: 20px; align-items: start; }
+
+  /* INPUTS PANEL */
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .panel-title { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 16px; }
+
+  .input-group { margin-bottom: 14px; }
+  .input-group label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+  .input-group input, .input-group select {
+    width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 7px;
+    padding: 8px 10px; color: var(--text); font-size: 13px; outline: none;
+    transition: border-color .15s;
+  }
+  .input-group input:focus, .input-group select:focus { border-color: var(--accent); }
+  .input-group .hint { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+  .section-divider { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--accent); margin: 18px 0 12px; border-top: 1px solid var(--border); padding-top: 14px; }
+
+  /* FIRE NUMBERS */
+  .fire-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+  .fire-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .fire-card.barista { border-color: var(--barista); }
+  .fire-card.chubby  { border-color: var(--chubby); }
+  .fire-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 6px; }
+  .fire-label.barista { color: var(--barista); }
+  .fire-label.chubby  { color: var(--chubby); }
+  .fire-number { font-size: 26px; font-weight: 700; color: var(--text); }
+  .fire-sub { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .fire-gap { font-size: 12px; font-weight: 600; margin-top: 8px; padding: 5px 9px; border-radius: 5px; display: inline-block; }
+  .fire-gap.ok   { background: rgba(82,217,160,.15); color: var(--barista); }
+  .fire-gap.miss { background: rgba(224,92,92,.15);  color: var(--danger); }
+
+  .info-row { display: flex; gap: 12px; margin-bottom: 16px; }
+  .info-box { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+  .info-box .label { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+  .info-box .val   { font-size: 15px; font-weight: 600; color: var(--text); }
+
+  .milestone-list { list-style: none; margin-bottom: 16px; }
+  .milestone-list li { padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 12px; display: flex; justify-content: space-between; }
+  .milestone-list li:last-child { border-bottom: none; }
+  .milestone-list .mk { color: var(--muted); }
+  .milestone-list .mv { font-weight: 600; }
+  .milestone-list .warn { color: var(--warn); }
+  .milestone-list .ok   { color: var(--barista); }
+
+  /* TABLE */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { background: var(--surface2); color: var(--muted); font-weight: 600; font-size: 11px;
+    text-transform: uppercase; letter-spacing: .06em; padding: 8px 10px; text-align: right;
+    position: sticky; top: 0; border-bottom: 1px solid var(--border); }
+  th:first-child, th:nth-child(2) { text-align: left; }
+  td { padding: 7px 10px; text-align: right; border-bottom: 1px solid rgba(46,50,72,.5); }
+  td:first-child, td:nth-child(2) { text-align: left; }
+  tr:hover td { background: var(--surface2); }
+  tr.highlight td { background: rgba(108,143,255,.07); }
+  tr.retire-row td { background: rgba(82,217,160,.07); font-weight: 600; }
+  .neg { color: var(--danger); }
+  .tag { font-size: 10px; font-weight: 600; padding: 1px 5px; border-radius: 3px; margin-left: 4px; }
+  .tag.retire  { background: rgba(82,217,160,.2);  color: var(--barista); }
+  .tag.cpf     { background: rgba(108,143,255,.2); color: var(--chubby); }
+  .tag.srs     { background: rgba(245,166,35,.2);  color: var(--warn); }
+  .tag.life    { background: rgba(224,92,92,.2);   color: var(--danger); }
+  .tag.oadep   { background: rgba(200,200,200,.15); color: var(--muted); }
+
+  .tab-bar { display: flex; gap: 6px; margin-bottom: 14px; }
+  .tab-btn { padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border); background: transparent;
+    color: var(--muted); font-size: 12px; cursor: pointer; font-weight: 500; }
+  .tab-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .recalc-btn { width: 100%; margin-top: 16px; padding: 10px; background: var(--accent);
+    color: #fff; font-size: 13px; font-weight: 600; border: none; border-radius: 8px; cursor: pointer; }
+  .recalc-btn:hover { opacity: .9; }
+
+  .badge-on  { background: rgba(82,217,160,.2);  color: var(--barista); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+  .badge-off { background: rgba(224,92,92,.2);   color: var(--danger);  padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+
+  .lump-row { display:flex; gap:6px; align-items:center; margin-bottom:7px; }
+  .lump-row input { flex:1; background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:7px 9px; color:var(--text); font-size:12px; outline:none; }
+  .lump-row input:focus { border-color:var(--accent); }
+  .lump-row .lump-label { font-size:11px; color:var(--muted); white-space:nowrap; }
+  .lump-row .del-btn { background:transparent; border:none; color:var(--danger); cursor:pointer; font-size:16px; padding:0 4px; line-height:1; }
+
+  @media (max-width: 800px) {
+    .grid2 { grid-template-columns: 1fr; }
+    .fire-cards { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>🔥 FIRE Calculator</h1>
+  <p class="subtitle">Barista &amp; Chubby FIRE planning · Singapore CPF · 3.5% SWR</p>
+
+  <div class="grid2">
+
+    <!-- LEFT: INPUTS -->
+    <div class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div class="panel-title" style="margin:0">Your Inputs</div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span id="saveStatus" style="font-size:11px;color:var(--muted)"></span>
+          <button id="saveBtn" onclick="saveProfile()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 11px;font-size:12px;cursor:pointer;font-weight:500;">💾 Save</button>
+          <button onclick="clearProfile()" style="background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:5px 11px;font-size:12px;cursor:pointer;">✕ Clear</button>
+        </div>
+      </div>
+
+      <div class="section-divider">Personal</div>
+      <div class="input-group">
+        <label>Date of Birth</label>
+        <input type="date" id="dob" placeholder="YYYY-MM-DD">
+      </div>
+      <div class="input-group">
+        <label>Target Retirement Year</label>
+        <input type="number" id="retireYear" placeholder="e.g. 2035" min="2026" max="2060">
+      </div>
+
+      <div class="section-divider">Current Assets</div>
+      <div class="input-group">
+        <label>Liquid Assets (SGD)</label>
+        <input type="number" id="liquid0" placeholder="e.g. 200000" step="1000">
+        <div class="hint">Investments, savings — grows at 5%/yr</div>
+      </div>
+      <div class="input-group">
+        <label>SRS Balance (SGD)</label>
+        <input type="number" id="srs0" placeholder="e.g. 50000" step="1000">
+        <div class="hint">Grows at 5%/yr · withdraw from age 62 over 10 yrs</div>
+      </div>
+      <div class="input-group">
+        <label>CPF OA Balance (SGD)</label>
+        <input type="number" id="oa0" placeholder="e.g. 80000" step="1000">
+        <div class="hint">Grows at 2.5%/yr</div>
+      </div>
+      <div class="input-group">
+        <label>CPF SA Balance (SGD)</label>
+        <input type="number" id="sa0" placeholder="e.g. 150000" step="1000">
+        <div class="hint">Grows at 4%/yr · merges with OA into RA at 55</div>
+      </div>
+
+      <div class="section-divider">Monthly Contributions (pre-retirement)</div>
+      <div class="input-group">
+        <label>Monthly Liquid Investment (SGD)</label>
+        <input type="number" id="mLiquid" placeholder="e.g. 2000" step="100">
+      </div>
+      <div class="input-group">
+        <label>Monthly SRS Contribution (SGD)</label>
+        <input type="number" id="mSRS" placeholder="e.g. 1275" step="100">
+        <div class="hint">Stops at retirement</div>
+      </div>
+      <div class="input-group">
+        <label>Monthly CPF OA Contribution (SGD)</label>
+        <input type="number" id="mOA" placeholder="e.g. 1500" step="100">
+        <div class="hint">Stops at retirement</div>
+      </div>
+      <div class="input-group">
+        <label>Monthly CPF SA Contribution (SGD)</label>
+        <input type="number" id="mSA" placeholder="e.g. 500" step="100">
+        <div class="hint">6% of wages · stops at retirement · grows at 4%/yr</div>
+      </div>
+      <div class="input-group">
+        <label>Monthly Mortgage from OA (SGD)</label>
+        <input type="number" id="mMortgage" placeholder="e.g. 1500" step="100">
+        <div class="hint">Fixed nominal · ends at age 65</div>
+      </div>
+
+      <div class="section-divider">Expenses &amp; Income</div>
+      <div class="input-group">
+        <label>Monthly Lifestyle Spend — today's $ (SGD)</label>
+        <input type="number" id="mExpense" placeholder="e.g. 3500" step="100">
+        <div class="hint">Barista base spend · inflates at 3%/yr</div>
+      </div>
+      <div class="input-group">
+        <label>Chubby Monthly Spend — today's $ (SGD)</label>
+        <input type="number" id="mExpenseChubby" placeholder="e.g. 5000" step="100">
+        <div class="hint">Set higher for a more comfortable lifestyle</div>
+      </div>
+      <div class="input-group">
+        <label>Barista Part-time Income — today's $ (SGD)</label>
+        <input type="number" id="mBarista" placeholder="e.g. 2000" step="100">
+        <div class="hint">Inflation-adjusted · offsets expenses</div>
+      </div>
+      <div class="input-group">
+        <label>Stop Barista Income — Year</label>
+        <input type="number" id="baristaStopYear" placeholder="e.g. 2055" min="2026" max="2075">
+        <div class="hint">Age <span id="baristaStopAge">—</span> · income goes to $0 after this year</div>
+      </div>
+
+      <div class="section-divider">CPF &amp; FRS</div>
+      <div class="input-group">
+        <label>Current FRS (SGD, base year 2025)</label>
+        <input type="number" id="frs2025" value="213000" step="1000">
+        <div class="hint">Grows at 3.5%/yr to compute FRS at your age 55</div>
+      </div>
+      <div class="input-group">
+        <label>CPF LIFE Plan</label>
+        <select id="cpflifePlan">
+          <option value="standard">Standard — 7.5% fixed monthly payout</option>
+          <option value="escalating">Escalating — 6.0% initial, +2%/yr</option>
+          <option value="basic">Basic — 6.5% fixed (lower, leaves bequest)</option>
+        </select>
+        <div class="hint" id="cpflifePlanHint">Fixed payout from age 65</div>
+      </div>
+
+      <div class="section-divider">Lump Sums</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Add one-off cash events to your liquid portfolio. Positive = injection (windfall, sale proceeds). Negative = withdrawal (house purchase, big expense).</div>
+      <div id="lumpSumRows"></div>
+      <button onclick="addLumpSum()" style="background:transparent;border:1px dashed var(--border);color:var(--muted);border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;width:100%;margin-bottom:4px;">+ Add Lump Sum</button>
+
+      <button class="recalc-btn" onclick="recalc()">Recalculate</button>
+    </div>
+
+    <!-- RIGHT: RESULTS -->
+    <div>
+
+      <!-- FIRE NUMBERS -->
+      <div class="fire-cards">
+        <div class="fire-card barista">
+          <div class="fire-label barista">☕ Barista FIRE</div>
+          <div class="fire-number" id="fireBarista">—</div>
+          <div class="fire-sub">Liquid needed at retirement</div>
+          <div id="gapBarista" class="fire-gap"></div>
+        </div>
+        <div class="fire-card chubby">
+          <div class="fire-label chubby">🍾 Chubby FIRE</div>
+          <div class="fire-number" id="fireChubby">—</div>
+          <div class="fire-sub">Liquid needed at retirement</div>
+          <div id="gapChubby" class="fire-gap"></div>
+        </div>
+      </div>
+
+      <!-- INFO BOXES -->
+      <div class="info-row">
+        <div class="info-box">
+          <div class="label">Projected Liquid @ Retirement</div>
+          <div class="val" id="projLiquid">—</div>
+        </div>
+        <div class="info-box">
+          <div class="label">FRS at Age 55</div>
+          <div class="val" id="frsAt55">—</div>
+        </div>
+        <div class="info-box">
+          <div class="label">Est. CPF LIFE Payout</div>
+          <div class="val" id="cpflifePayout">—</div>
+        </div>
+      </div>
+
+      <!-- CHART -->
+      <div class="panel" style="margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <div class="panel-title" style="margin:0">Visualisation</div>
+          <div class="tab-bar" style="margin:0">
+            <button class="tab-btn active" id="ctab-traj"  onclick="switchChartTab('trajectory',this)">📈 Trajectory</button>
+            <button class="tab-btn"         id="ctab-break" onclick="switchChartTab('breakdown',this)">🥧 Asset Breakdown</button>
+          </div>
+        </div>
+        <canvas id="fireChart" style="max-height:320px"></canvas>
+      </div>
+
+      <!-- MILESTONES -->
+      <div class="panel" style="margin-bottom:16px">
+        <div class="panel-title">Key Milestones</div>
+        <ul class="milestone-list" id="milestones"></ul>
+      </div>
+
+      <!-- TABLE TABS -->
+      <div class="panel">
+        <div class="panel-title">Year-by-Year Projection</div>
+        <div class="tab-bar">
+          <button class="tab-btn active" onclick="switchTab('barista',this)">☕ Barista</button>
+          <button class="tab-btn" onclick="switchTab('chubby',this)">🍾 Chubby</button>
+        </div>
+        <div class="table-wrap">
+          <table id="projTable">
+            <thead>
+              <tr>
+                <th>Year</th>
+                <th>Age</th>
+                <th>Liquid</th>
+                <th>SRS</th>
+                <th>CPF OA</th>
+                <th>CPF SA</th>
+                <th>CPF RA</th>
+                <th>Total NW</th>
+                <th title="Annual net draw from liquid. Negative = portfolio growing. Excludes SRS and CPF LIFE income.">Liquid Draw</th>
+                <th title="Total income from all non-liquid sources: SRS + CPF LIFE + Barista income">Other Income</th>
+              </tr>
+            </thead>
+            <tbody id="projBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// ── SIMULATION ENGINE ────────────────────────────────────────────────────────
+
+function monthlyRate(annual) {
+  return Math.pow(1 + annual, 1/12) - 1;
+}
+
+function pmtAmortize(principal, annualRate, nMonths) {
+  const r = monthlyRate(annualRate);
+  if (r === 0) return principal / nMonths;
+  return principal * r / (1 - Math.pow(1 + r, -nMonths));
+}
+
+function simulate(params, scenario) {
+  const {
+    birthYear, retireYear,
+    liquid0, srs0, oa0, sa0,
+    mLiquid, mSRS, mOA, mSA, mMortgage,
+    mExpense, mExpenseChubby, mBarista,
+    baristaStopYear, lumpSums,
+    frs2025, cpflifeRate, cpflifeEscalating
+  } = params;
+  // Build lump sum lookup: year → net amount
+  const lumpMap = {};
+  (lumpSums || []).forEach(({year, amount}) => { lumpMap[year] = (lumpMap[year] || 0) + amount; });
+
+  const SIM_START = new Date().getFullYear();
+  const SIM_END   = birthYear + 85;
+
+  const baseExpense = scenario === 'chubby' ? mExpenseChubby : mExpense;
+
+  const YR_RETIRE  = retireYear;
+  const YR_RA      = birthYear + 55;
+  const YR_SRS_ST  = birthYear + 62;
+  const YR_SRS_END = birthYear + 72;
+  const YR_CPFLIFE = birthYear + 65;
+  const FRS_AT_55  = frs2025 * Math.pow(1.035, YR_RA - 2025);
+
+  const gL  = 1 + monthlyRate(0.05);
+  const gS  = 1 + monthlyRate(0.05);
+  const gOA = 1 + monthlyRate(0.025);
+  const gSA = 1 + monthlyRate(0.04);
+  const gRA = 1 + monthlyRate(0.04);
+  const gEX = 1 + monthlyRate(0.05);
+  const gI  = 1 + monthlyRate(0.03);
+
+  let liquid = liquid0, srs = srs0, oa = oa0, sa = sa0, ra = 0, excess = 0;
+  let oaDepleted = false, raMerged = false, cpflifeMo = 0, srsDraw = 0;
+  let oaDepletedYear = null, raAtConversion = 0;
+  let inflFactor = 1.0;
+
+  // Annual accumulators (reset each January)
+  let yearLiquidDraw = 0;   // net draw from liquid (positive = withdrawing)
+  let yearOtherIncome = 0;  // SRS + CPF LIFE + Barista income
+
+  const yearly  = {};
+  const totalMo = (SIM_END - SIM_START + 1) * 12;
+
+  for (let m = 0; m < totalMo; m++) {
+    const year  = SIM_START + Math.floor(m / 12);
+    const month = (m % 12) + 1;
+    const age   = year - birthYear;
+
+    // Reset annual accumulators each January
+    if (month === 1) { yearLiquidDraw = 0; yearOtherIncome = 0; }
+
+    // ── ONE-TIME EVENTS ──
+    if (year === YR_RA && month === 1 && !raMerged) {
+      const totalCPF = oa + sa;
+      ra     = Math.min(totalCPF, FRS_AT_55);
+      const cpfExcess = Math.max(totalCPF - FRS_AT_55, 0);
+      liquid += cpfExcess;   // excess flows directly into liquid portfolio
+      excess  = 0;
+      oa = sa = 0;
+      oaDepleted = true;
+      raMerged   = true;
+    }
+    if (year === YR_SRS_ST && month === 1 && srsDraw === 0 && srs > 0) {
+      srsDraw = pmtAmortize(srs, 0.05, 120);
+    }
+    if (year === YR_CPFLIFE && month === 1 && cpflifeMo === 0) {
+      cpflifeMo = ra * cpflifeRate / 12;
+      raAtConversion = ra;
+      ra = 0;
+    }
+    // Escalating plan: increase payout by 2% each January after conversion
+    if (cpflifeEscalating && cpflifeMo > 0 && year > YR_CPFLIFE && month === 1) {
+      cpflifeMo *= 1.02;
+    }
+
+    // ── CASH FLOWS ──
+    if (year < YR_RETIRE) {
+      // Accumulation — contributions, no lifestyle draw
+      liquid += mLiquid;
+      srs    += mSRS;
+      sa     += (mSA || 0);
+      const netOA = mOA - mMortgage;
+      oa += netOA;
+      if (oa < 0) { oa = 0; oaDepleted = true; }
+      // No drawdown during accumulation
+    } else {
+      // Post-retirement
+      let mortgageCash = 0;
+      if (age < 65 && !oaDepleted && oa > 0) {
+        const draw = Math.min(oa, mMortgage);
+        oa -= draw;
+        mortgageCash = mMortgage - draw;
+        if (oa <= 0) { oa = 0; oaDepleted = true; if (!oaDepletedYear) oaDepletedYear = year; }
+      } else if (age < 65) {
+        mortgageCash = mMortgage;
+        if (!oaDepletedYear && oaDepleted) oaDepletedYear = year;
+      }
+
+      let srsIncome = 0;
+      if (srsDraw > 0 && srs > 0 && year <= YR_SRS_END) {
+        srsIncome = Math.min(srsDraw, srs);
+        srs -= srsIncome;
+      }
+
+      const baristaActive = scenario === 'barista' && year <= (baristaStopYear || 9999);
+      const baristaInc  = baristaActive ? mBarista * inflFactor : 0;
+      const cpflifeInc  = cpflifeMo;
+      const expNominal  = baseExpense * inflFactor + mortgageCash;
+      const totalIncome = srsIncome + cpflifeInc + baristaInc;
+      const netDraw     = expNominal - totalIncome;
+
+      liquid -= netDraw;
+
+      // Accumulate annual totals
+      yearLiquidDraw  += netDraw;
+      yearOtherIncome += srsIncome + cpflifeInc + baristaInc;
+    }
+
+    // Apply lump sum at January of the event year (after contributions/draws)
+    if (month === 1 && lumpMap[year]) {
+      liquid += lumpMap[year];
+      yearLiquidDraw -= lumpMap[year]; // injection reduces net draw; withdrawal increases it
+    }
+
+    // ── GROWTH ──
+    liquid *= gL;
+    srs    *= gS;
+    if (!oaDepleted) oa *= gOA;
+    if (!raMerged)   sa *= gSA;
+    if (ra > 0)      ra *= gRA;
+    inflFactor *= gI;
+
+    // ── YEAR-END SNAPSHOT ──
+    if (month === 12) {
+      // At CPF LIFE conversion year, show the RA amount that converted (not 0)
+      const raDisplay = (ra === 0 && year === YR_CPFLIFE) ? raAtConversion : ra;
+      yearly[year] = {
+        year, age,
+        liquid, srs, oa, sa,
+        ra: raDisplay,
+        raConverted: (year === YR_CPFLIFE),
+        cpflifeMo,
+        total: liquid + srs + oa + sa + ra,
+        annualLiquidDraw:  yearLiquidDraw,
+        annualOtherIncome: yearOtherIncome,
+      };
+    }
+  }
+
+  yearly._meta = { FRS_AT_55, oaDepletedYear, cpflifeMo, YR_RA, YR_SRS_ST, YR_CPFLIFE, YR_RETIRE };
+  return yearly;
+}
+
+// ── FIRE NUMBER (binary search on liquid at retirement) ─────────────────────
+
+function findFireNumber(params, scenario) {
+  // First: project SRS/OA/SA to retirement via accumulation only
+  const { birthYear, retireYear, srs0, oa0, sa0, mSRS, mOA, mSA, mMortgage } = params;
+  const SIM_START = new Date().getFullYear();
+
+  let srs = srs0, oa = oa0, sa = sa0;
+  const gS = 1 + monthlyRate(0.05), gOA = 1 + monthlyRate(0.025), gSA = 1 + monthlyRate(0.04);
+
+  const monthsPre = (retireYear - SIM_START) * 12;
+  for (let m = 0; m < monthsPre; m++) {
+    srs += mSRS;
+    sa  += (mSA || 0);
+    const netOA = mOA - mMortgage;
+    oa += netOA;
+    if (oa < 0) oa = 0;
+    srs *= gS; oa *= gOA; sa *= gSA;
+  }
+
+  // Binary search on liquid at retirement
+  function test(L) {
+    const p2 = { ...params, liquid0: L, srs0: srs, oa0: oa, sa0: sa, mLiquid: 0, mSRS: 0, mOA: 0 };
+    // Manually simulate post-retirement only
+    const { birthYear, retireYear, mMortgage, mExpense, mExpenseChubby, mBarista, baristaStopYear, lumpSums, frs2025, cpflifeRate, cpflifeEscalating } = params;
+    const lumpMap2 = {};
+    (lumpSums || []).forEach(({year, amount}) => { lumpMap2[year] = (lumpMap2[year] || 0) + amount; });
+    const baseExpense = scenario === 'chubby' ? mExpenseChubby : mExpense;
+    const SIM_END   = birthYear + 85;
+    const YR_RA     = birthYear + 55;
+    const YR_SRS_ST = birthYear + 62;
+    const YR_SRS_END = birthYear + 72;
+    const YR_CPFLIFE = birthYear + 65;
+    const FRS_AT_55  = frs2025 * Math.pow(1.035, YR_RA - 2025);
+
+    const gL = 1+monthlyRate(0.05), gS=1+monthlyRate(0.05), gOA=1+monthlyRate(0.025),
+          gSA=1+monthlyRate(0.04), gRA=1+monthlyRate(0.04), gEX=1+monthlyRate(0.05),
+          gI=1+monthlyRate(0.03);
+
+    let liq = L, _srs = srs, _oa = oa, _sa = sa, _ra = 0, _ex = 0;
+    let oaDep = (_oa <= 0), raMer = false, cpfMo = 0, srsDr = 0;
+    let infl = Math.pow(1.03, retireYear - SIM_START);
+
+    const totalMo = (SIM_END - retireYear + 1) * 12;
+    for (let m = 0; m < totalMo; m++) {
+      const year = retireYear + Math.floor(m/12);
+      const month = (m%12)+1;
+      const age = year - birthYear;
+
+      if (year===YR_RA && month===1 && !raMer) {
+        const tot = _oa+_sa;
+        _ra  = Math.min(tot, FRS_AT_55);
+        liq += Math.max(tot - FRS_AT_55, 0);  // excess into liquid
+        _ex  = 0;
+        _oa=_sa=0; oaDep=true; raMer=true;
+      }
+      if (year===YR_SRS_ST && month===1 && srsDr===0 && _srs>0) srsDr=pmtAmortize(_srs,0.05,120);
+      if (year===YR_CPFLIFE && month===1 && cpfMo===0) { cpfMo=_ra*cpflifeRate/12; _ra=0; }
+      if (cpflifeEscalating && cpfMo>0 && year>YR_CPFLIFE && month===1) cpfMo*=1.02;
+
+      let mortCash=0;
+      if (age<65 && !oaDep && _oa>0) {
+        const d=Math.min(_oa,mMortgage); _oa-=d; mortCash=mMortgage-d;
+        if(_oa<=0){_oa=0;oaDep=true;}
+      } else if (age<65) mortCash=mMortgage;
+
+      let srsInc=0;
+      if(srsDr>0&&_srs>0&&year<=YR_SRS_END){srsInc=Math.min(srsDr,_srs);_srs-=srsInc;}
+
+      const baristaOn = scenario==='barista' && year<=(baristaStopYear||9999);
+      const bInc = baristaOn ? mBarista*infl : 0;
+      const exp  = baseExpense*infl + mortCash;
+      const inc  = srsInc+cpfMo+bInc;
+      liq -= (exp-inc);
+
+      if (month===1 && lumpMap2[year]) liq += lumpMap2[year];
+
+      liq*=gL; _srs*=gS;
+      if(!oaDep)_oa*=gOA; if(!raMer)_sa*=gSA;
+      if(_ra>0)_ra*=gRA;
+      infl*=(1+monthlyRate(0.03));
+
+      if(liq<0) return false;
+    }
+    return true;
+  }
+
+  let lo=0, hi=5000000;
+  for(let i=0;i<40;i++) {
+    const mid=(lo+hi)/2;
+    if(test(mid)) hi=mid; else lo=mid;
+  }
+  return Math.ceil(hi/1000)*1000;
+}
+
+// ── FORMATTING ───────────────────────────────────────────────────────────────
+
+function fmt(n)  { return n < 0 ? '-$'+Math.abs(Math.round(n)).toLocaleString() : '$'+Math.round(n).toLocaleString(); }
+function fmtN(n) { return Math.round(n).toLocaleString(); }
+
+// ── SAVE / LOAD PROFILE (localStorage) ──────────────────────────────────────
+
+const STORAGE_KEY = 'fire_calc_profile';
+const FIELD_IDS   = ['dob','retireYear','liquid0','srs0','oa0','sa0',
+                     'mLiquid','mSRS','mOA','mSA','mMortgage',
+                     'mExpense','mExpenseChubby','mBarista','baristaStopYear',
+                     'frs2025','cpflifePlan'];
+
+function saveProfile() {
+  const data = { _savedAt: new Date().toLocaleString('en-SG') };
+  FIELD_IDS.forEach(id => { const el = document.getElementById(id); if (el) data[id] = el.value; });
+  data._lumpSums = getLumpSums();
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  const btn = document.getElementById('saveBtn');
+  const status = document.getElementById('saveStatus');
+  btn.textContent = '✓ Saved';
+  btn.style.color = 'var(--barista)';
+  status.textContent = 'Last saved ' + data._savedAt;
+  setTimeout(() => { btn.textContent = '💾 Save'; btn.style.color = ''; }, 2000);
+}
+
+function loadProfile() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) return;
+  try {
+    const data = JSON.parse(raw);
+    FIELD_IDS.forEach(id => {
+      const el = document.getElementById(id);
+      if (el && data[id] !== undefined) el.value = data[id];
+    });
+    if (data._lumpSums && data._lumpSums.length) {
+      document.getElementById('lumpSumRows').innerHTML = '';
+      lumpSumCount = 0;
+      data._lumpSums.forEach(({ year, amount }) => addLumpSum(year, amount));
+    }
+    if (data._savedAt) {
+      document.getElementById('saveStatus').textContent = 'Last saved ' + data._savedAt;
+    }
+  } catch (e) { /* corrupt data — ignore */ }
+}
+
+function clearProfile() {
+  if (!confirm('Clear all saved data?')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  FIELD_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.tagName === 'INPUT') el.value = '';
+  });
+  document.getElementById('lumpSumRows').innerHTML = '';
+  document.getElementById('saveStatus').textContent = '';
+  // Reset results to blank state
+  ['fireBarista','fireChubby','projLiquid','frsAt55','cpflifePayout'].forEach(id => {
+    document.getElementById(id).textContent = '—';
+  });
+  document.getElementById('milestones').innerHTML = '';
+  document.getElementById('projBody').innerHTML = '';
+  if (fireChart) { fireChart.destroy(); fireChart = null; }
+}
+
+// ── LUMP SUM UI ──────────────────────────────────────────────────────────────
+
+let lumpSumCount = 0;
+
+function addLumpSum(year = '', amount = '') {
+  const id = ++lumpSumCount;
+  const div = document.createElement('div');
+  div.className = 'lump-row';
+  div.id = 'ls-' + id;
+  div.innerHTML = `
+    <span class="lump-label">Yr</span>
+    <input type="number" id="ls-yr-${id}" value="${year}" placeholder="2032" min="2026" max="2075" style="max-width:80px">
+    <span class="lump-label">SGD</span>
+    <input type="number" id="ls-amt-${id}" value="${amount}" placeholder="+50000" step="1000">
+    <button class="del-btn" onclick="document.getElementById('ls-${id}').remove()">×</button>
+  `;
+  document.getElementById('lumpSumRows').appendChild(div);
+}
+
+function getLumpSums() {
+  const rows = document.querySelectorAll('#lumpSumRows .lump-row');
+  const events = [];
+  rows.forEach(row => {
+    const id = row.id.replace('ls-','');
+    const yr  = parseInt(document.getElementById('ls-yr-'+id)?.value);
+    const amt = parseFloat(document.getElementById('ls-amt-'+id)?.value);
+    if (!isNaN(yr) && !isNaN(amt) && amt !== 0) events.push({ year: yr, amount: amt });
+  });
+  return events;
+}
+
+// ── UI ───────────────────────────────────────────────────────────────────────
+
+let currentScenario = 'barista';
+let lastBarista = null, lastChubby = null;
+let lastFireB = 0, lastFireC = 0, lastParams = null;
+
+function getParams() {
+  const dob = new Date(document.getElementById('dob').value);
+  const birthYear = dob.getFullYear();
+  const baristaStopYear = parseInt(document.getElementById('baristaStopYear').value);
+  // Update age hint
+  document.getElementById('baristaStopAge').textContent = baristaStopYear - birthYear;
+  const planHints = { standard: 'Fixed payout from age 65', escalating: 'Starts lower, grows +2%/yr from age 65', basic: 'Fixed payout, preserves bequest' };
+  document.getElementById('cpflifePlanHint').textContent = planHints[document.getElementById('cpflifePlan').value];
+  return {
+    birthYear,
+    retireYear:      parseInt(document.getElementById('retireYear').value),
+    liquid0:         parseFloat(document.getElementById('liquid0').value),
+    srs0:            parseFloat(document.getElementById('srs0').value),
+    oa0:             parseFloat(document.getElementById('oa0').value),
+    sa0:             parseFloat(document.getElementById('sa0').value),
+    mLiquid:         parseFloat(document.getElementById('mLiquid').value),
+    mSRS:            parseFloat(document.getElementById('mSRS').value),
+    mOA:             parseFloat(document.getElementById('mOA').value),
+    mSA:             parseFloat(document.getElementById('mSA').value) || 0,
+    mMortgage:       parseFloat(document.getElementById('mMortgage').value),
+    mExpense:        parseFloat(document.getElementById('mExpense').value),
+    mExpenseChubby:  parseFloat(document.getElementById('mExpenseChubby').value),
+    mBarista:        parseFloat(document.getElementById('mBarista').value),
+    baristaStopYear,
+    frs2025:         parseFloat(document.getElementById('frs2025').value),
+    cpflifePlan:     document.getElementById('cpflifePlan').value,
+    cpflifeRate:     ({ standard: 0.075, escalating: 0.060, basic: 0.065 })[document.getElementById('cpflifePlan').value],
+    cpflifeEscalating: document.getElementById('cpflifePlan').value === 'escalating',
+    lumpSums:        getLumpSums(),
+  };
+}
+
+function recalc() {
+  const p = getParams();
+
+  // Guard: require the essential fields before running
+  if (!p.birthYear || !p.retireYear || !p.liquid0) {
+    ['fireBarista','fireChubby','projLiquid','frsAt55','cpflifePayout'].forEach(id => {
+      document.getElementById(id).textContent = '—';
+    });
+    document.getElementById('gapBarista').textContent = '';
+    document.getElementById('gapChubby').textContent  = '';
+    document.getElementById('milestones').innerHTML = '';
+    document.getElementById('projBody').innerHTML = '';
+    return;
+  }
+
+  lastBarista = simulate(p, 'barista');
+  lastChubby  = simulate(p, 'chubby');
+
+  const meta = lastBarista._meta;
+  const fireB = findFireNumber(p, 'barista');
+  const fireC = findFireNumber(p, 'chubby');
+  lastFireB = fireB; lastFireC = fireC; lastParams = p;
+
+  const projLiq = lastBarista[p.retireYear] ? lastBarista[p.retireYear].liquid : 0;
+
+  // Fire numbers
+  document.getElementById('fireBarista').textContent = fmt(fireB);
+  document.getElementById('fireChubby').textContent  = fmt(fireC);
+  document.getElementById('projLiquid').textContent  = fmt(projLiq);
+  document.getElementById('frsAt55').textContent     = fmt(meta.FRS_AT_55);
+  const cpfLifeLabel = p.cpflifeEscalating
+    ? '$' + Math.round(meta.cpflifeMo).toLocaleString() + '/mo initial (+2%/yr)'
+    : '$' + Math.round(meta.cpflifeMo).toLocaleString() + '/mo fixed';
+  document.getElementById('cpflifePayout').textContent = cpfLifeLabel;
+
+  const gapB = projLiq - fireB;
+  const gapC = projLiq - fireC;
+
+  const gbEl = document.getElementById('gapBarista');
+  gbEl.textContent  = (gapB >= 0 ? '✓ ON TRACK +' : '✗ SHORTFALL ') + fmt(Math.abs(gapB));
+  gbEl.className    = 'fire-gap ' + (gapB >= 0 ? 'ok' : 'miss');
+
+  const gcEl = document.getElementById('gapChubby');
+  gcEl.textContent  = (gapC >= 0 ? '✓ ON TRACK +' : '✗ SHORTFALL ') + fmt(Math.abs(gapC));
+  gcEl.className    = 'fire-gap ' + (gapC >= 0 ? 'ok' : 'miss');
+
+  // Milestones
+  const ml = document.getElementById('milestones');
+  ml.innerHTML = '';
+  const rows = [
+    ['Retirement Year', p.retireYear + ' (age ' + (p.retireYear - p.birthYear) + ')', 'ok'],
+    ['OA Depletes', meta.oaDepletedYear ? meta.oaDepletedYear + ' — mortgage shifts to liquid' : 'Before retirement', 'warn'],
+    ['Stop Barista Income', p.baristaStopYear + ' (age ' + (p.baristaStopYear - p.birthYear) + ')', 'warn'],
+    ['CPF OA+SA → RA (age 55)', meta.YR_RA + ' · FRS ' + fmt(meta.FRS_AT_55), ''],
+    ['SRS Withdrawal Starts (age 62)', meta.YR_SRS_ST + ' · spread over 10 yrs', ''],
+    ['CPF LIFE + Mortgage Ends (age 65)', meta.YR_CPFLIFE + ' · +$' + Math.round(meta.cpflifeMo).toLocaleString() + '/mo income', 'ok'],
+    ['SRS Fully Withdrawn (age 72)', (p.birthYear + 72) + '', ''],
+  ];
+  rows.forEach(([k,v,cls]) => {
+    const li = document.createElement('li');
+    li.innerHTML = `<span class="mk">${k}</span><span class="mv ${cls}">${v}</span>`;
+    ml.appendChild(li);
+  });
+
+  renderTable(currentScenario);
+  updateChart(p, fireB, fireC);
+}
+
+function switchTab(sc, btn) {
+  currentScenario = sc;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (lastBarista) renderTable(sc);
+}
+
+function renderTable(sc) {
+  const data = sc === 'barista' ? lastBarista : lastChubby;
+  if (!data) return;
+  const meta = lastBarista._meta;
+  const p = getParams();
+
+  const SIM_START = new Date().getFullYear();
+  const SIM_END   = p.birthYear + 85;
+  const tbody = document.getElementById('projBody');
+  tbody.innerHTML = '';
+
+  const showYears = new Set();
+  for (let y = SIM_START; y <= SIM_END; y++) showYears.add(y); // show all
+
+  for (let y = SIM_START; y <= SIM_END; y++) {
+    const r = data[y];
+    if (!r) continue;
+
+    // Only show certain years to keep table readable
+    const isKey = [SIM_START, p.retireYear, meta.YR_RA, meta.YR_SRS_ST, meta.YR_CPFLIFE, p.birthYear+72, p.birthYear+75, p.birthYear+80, p.birthYear+85].includes(y)
+      || (y % 5 === 0)
+      || (meta.oaDepletedYear && y === meta.oaDepletedYear);
+    if (!isKey) continue;
+
+    const tr = document.createElement('tr');
+    let tags = '';
+    if (y === p.retireYear)     { tr.classList.add('retire-row'); tags += '<span class="tag retire">RETIRE</span>'; }
+    if (y === meta.YR_RA)       tags += '<span class="tag cpf">CPF merge</span>';
+    if (y === meta.YR_SRS_ST)   tags += '<span class="tag srs">SRS draws</span>';
+    if (y === meta.YR_CPFLIFE)  tags += '<span class="tag life">CPF LIFE</span>';
+    if (meta.oaDepletedYear && y === meta.oaDepletedYear) tags += '<span class="tag oadep">OA depletes</span>';
+
+    const negCls = (v) => v < 0 ? ' class="neg"' : '';
+
+    // Liquid draw: positive = withdrawing (red), negative = reinvesting (green)
+    const drawVal = r.annualLiquidDraw || 0;
+    const drawFmt = drawVal === 0
+      ? '<span style="color:var(--muted)">—</span>'
+      : drawVal > 0
+        ? `<span style="color:var(--danger)">-${fmt(drawVal)}</span>`
+        : `<span style="color:var(--barista)">+${fmt(Math.abs(drawVal))}</span>`;
+    const otherInc = r.annualOtherIncome || 0;
+    const otherFmt = otherInc > 0
+      ? `<span style="color:var(--accent2)">${fmt(otherInc)}</span>`
+      : '<span style="color:var(--muted)">—</span>';
+
+    const raCell = r.raConverted
+      ? `<span style="color:var(--muted)">${fmt(r.ra)} <span style="font-size:10px;color:var(--warn)">→ CPF LIFE</span></span>`
+      : fmt(r.ra);
+
+    tr.innerHTML = `
+      <td>${r.year}${tags}</td>
+      <td>${r.age}</td>
+      <td${negCls(r.liquid)}>${fmt(r.liquid)}</td>
+      <td>${fmt(r.srs)}</td>
+      <td>${fmt(r.oa)}</td>
+      <td>${fmt(r.sa)}</td>
+      <td>${raCell}</td>
+      <td${negCls(r.total)}>${fmt(r.total)}</td>
+      <td>${drawFmt}</td>
+      <td>${otherFmt}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+}
+
+// ── CHART ────────────────────────────────────────────────────────────────────
+
+let fireChart = null;
+let currentChartTab = 'trajectory';
+
+// Custom plugin: vertical event lines
+const eventLinesPlugin = {
+  id: 'eventLines',
+  afterDraw(chart) {
+    if (!chart.config._meta?.events) return;
+    const { ctx, chartArea, scales } = chart;
+    const xScale = scales.x;
+    chart.config._meta.events.forEach(({ year, label, color }) => {
+      const x = xScale.getPixelForValue(year);
+      if (x < chartArea.left || x > chartArea.right) return;
+      ctx.save();
+      ctx.beginPath();
+      ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = color || 'rgba(255,255,255,0.2)';
+      ctx.lineWidth = 1;
+      ctx.moveTo(x, chartArea.top);
+      ctx.lineTo(x, chartArea.bottom);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = color || 'rgba(255,255,255,0.4)';
+      ctx.font = '10px Inter, system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText(label, x, chartArea.top + 10);
+      ctx.restore();
+    });
+  }
+};
+Chart.register(eventLinesPlugin);
+
+function buildChartData(p, fireB, fireC) {
+  const SIM_END = p.birthYear + 85;
+  const years = [];
+  const bLiquid = [], cLiquid = [], bTotal = [], cTotal = [];
+  const bSRS = [], bOA = [], bSA = [], bRA = [];
+
+  for (let y = new Date().getFullYear(); y <= SIM_END; y++) {
+    const rb = lastBarista[y], rc = lastChubby[y];
+    if (!rb || !rc) continue;
+    years.push(y);
+    bLiquid.push(rb.liquid / 1e3);
+    cLiquid.push(rc.liquid / 1e3);
+    bTotal.push(rb.total / 1e3);
+    cTotal.push(rc.total / 1e3);
+    bSRS.push(rb.srs / 1e3);
+    bOA.push(rb.oa / 1e3);
+    bSA.push(rb.sa / 1e3);
+    bRA.push(rb.ra / 1e3);
+  }
+
+  const events = [
+    { year: p.retireYear,         label: 'Retire',   color: 'rgba(82,217,160,0.6)' },
+    { year: p.birthYear + 55,     label: 'Age 55',   color: 'rgba(108,143,255,0.5)' },
+    { year: p.baristaStopYear,    label: 'Stop Barista', color: 'rgba(245,166,35,0.5)' },
+    { year: p.birthYear + 65,     label: 'Age 65',   color: 'rgba(224,92,92,0.5)' },
+  ];
+
+  return { years, bLiquid, cLiquid, bTotal, cTotal, bSRS, bOA, bSA, bRA, events, fireB, fireC };
+}
+
+function renderTrajectoryChart(data) {
+  const { years, bLiquid, cLiquid, bTotal, cTotal, events, fireB, fireC } = data;
+  const fireBLine = years.map(() => fireB / 1e3);
+  const fireCLine = years.map(() => fireC / 1e3);
+
+  return {
+    type: 'line',
+    data: {
+      labels: years,
+      datasets: [
+        { label: '☕ Barista — Total NW',  data: bTotal,    borderColor: '#52d9a0', backgroundColor: 'rgba(82,217,160,0.08)', fill: true,  borderWidth: 2, pointRadius: 0, tension: 0.3 },
+        { label: '🍾 Chubby — Total NW',   data: cTotal,    borderColor: '#6c8fff', backgroundColor: 'rgba(108,143,255,0.08)', fill: true, borderWidth: 2, pointRadius: 0, tension: 0.3 },
+        { label: '☕ Barista — Liquid',     data: bLiquid,   borderColor: '#52d9a0', borderDash: [5,3], borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: false },
+        { label: '🍾 Chubby — Liquid',      data: cLiquid,   borderColor: '#6c8fff', borderDash: [5,3], borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: false },
+        { label: '🎯 Barista FIRE number',  data: fireBLine, borderColor: 'rgba(82,217,160,0.4)',  borderDash: [8,4], borderWidth: 1, pointRadius: 0, fill: false },
+        { label: '🎯 Chubby FIRE number',   data: fireCLine, borderColor: 'rgba(108,143,255,0.4)', borderDash: [8,4], borderWidth: 1, pointRadius: 0, fill: false },
+      ]
+    },
+    options: chartOptions('SGD (thousands)', events)
+  };
+}
+
+function renderBreakdownChart(data) {
+  const { years, bLiquid, bSRS, bOA, bSA, bRA, events } = data;
+  return {
+    type: 'line',
+    data: {
+      labels: years,
+      datasets: [
+        { label: 'Liquid Portfolio', data: bLiquid, borderColor: '#52d9a0', backgroundColor: 'rgba(82,217,160,0.25)', fill: 'origin', borderWidth: 1.5, pointRadius: 0, tension: 0.3, stack: 'a' },
+        { label: 'SRS',              data: bSRS,    borderColor: '#f5a623', backgroundColor: 'rgba(245,166,35,0.2)',  fill: '-1',     borderWidth: 1.5, pointRadius: 0, tension: 0.3, stack: 'a' },
+        { label: 'CPF OA',           data: bOA,     borderColor: '#aab4f5', backgroundColor: 'rgba(170,180,245,0.2)', fill: '-1',    borderWidth: 1.5, pointRadius: 0, tension: 0.3, stack: 'a' },
+        { label: 'CPF SA',           data: bSA,     borderColor: '#9b7fe8', backgroundColor: 'rgba(155,127,232,0.2)', fill: '-1',    borderWidth: 1.5, pointRadius: 0, tension: 0.3, stack: 'a' },
+        { label: 'CPF RA',           data: bRA,     borderColor: '#e05c5c', backgroundColor: 'rgba(224,92,92,0.2)',  fill: '-1',     borderWidth: 1.5, pointRadius: 0, tension: 0.3, stack: 'a' },
+      ]
+    },
+    options: chartOptions('SGD (thousands)', events)
+  };
+}
+
+function chartOptions(yLabel, events) {
+  return {
+    responsive: true,
+    interaction: { mode: 'index', intersect: false },
+    animation: { duration: 400 },
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: { color: '#8892a4', boxWidth: 14, padding: 12, font: { size: 11 } }
+      },
+      tooltip: {
+        backgroundColor: '#1a1d27',
+        borderColor: '#2e3248',
+        borderWidth: 1,
+        titleColor: '#e2e8f0',
+        bodyColor: '#8892a4',
+        callbacks: {
+          label: ctx => ` ${ctx.dataset.label}: $${ctx.parsed.y >= 0 ? '' : '-'}${Math.abs(ctx.parsed.y).toFixed(0)}K`
+        }
+      },
+      eventLines: false  // handled via plugin registration above
+    },
+    scales: {
+      x: {
+        ticks: { color: '#8892a4', maxTicksLimit: 12, font: { size: 11 } },
+        grid:  { color: 'rgba(46,50,72,0.6)' }
+      },
+      y: {
+        title: { display: true, text: yLabel, color: '#8892a4', font: { size: 11 } },
+        ticks: { color: '#8892a4', font: { size: 11 }, callback: v => '$' + v.toLocaleString() + 'K' },
+        grid:  { color: 'rgba(46,50,72,0.6)' }
+      }
+    },
+    _meta: { events }
+  };
+}
+
+function updateChart(p, fireB, fireC) {
+  const data = buildChartData(p, fireB, fireC);
+  const config = currentChartTab === 'trajectory'
+    ? renderTrajectoryChart(data)
+    : renderBreakdownChart(data);
+
+  if (fireChart) {
+    fireChart.data    = config.data;
+    fireChart.options = config.options;
+    fireChart.config._meta = config.options._meta;
+    fireChart.update();
+  } else {
+    const ctx = document.getElementById('fireChart').getContext('2d');
+    Chart.defaults.color = '#8892a4';
+    fireChart = new Chart(ctx, config);
+    fireChart.config._meta = config.options._meta;
+  }
+}
+
+function switchChartTab(tab, btn) {
+  currentChartTab = tab;
+  document.querySelectorAll('#ctab-traj, #ctab-break').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (lastBarista) updateChart(lastParams, lastFireB, lastFireC);
+}
+
+// Run on load — restore saved profile if present, then calculate
+loadProfile();
+recalc();
+</script>
+</body>
+</html>
