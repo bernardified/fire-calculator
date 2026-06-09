@@ -291,11 +291,6 @@
 
       <div class="section-divider">CPF &amp; FRS</div>
       <div class="input-group">
-        <label>Current FRS (SGD, base year 2025)</label>
-        <input type="number" id="frs2025" value="213000" step="1000">
-        <div class="hint">Grows at 3.5%/yr to compute FRS at your age 55</div>
-      </div>
-      <div class="input-group">
         <label>CPF LIFE Plan</label>
         <select id="cpflifePlan">
           <option value="standard">Standard — 7.5% fixed monthly payout</option>
@@ -673,7 +668,7 @@ const STORAGE_KEY = 'fire_calc_profile';
 const FIELD_IDS   = ['dob','retireYear','portfolioGrowthRate','liquid0','srs0','oa0','sa0',
                      'mLiquid','mSRS','srsStopYear','mOA','mSA','mMortgage','mortgageEndYear',
                      'mExpense','mExpenseChubby','mBarista','baristaStopYear',
-                     'frs2025','cpflifePlan'];
+                     'cpflifePlan'];
 
 function saveProfile() {
   const data = { _savedAt: new Date().toLocaleString('en-SG') };
@@ -795,7 +790,7 @@ function getParams() {
     mExpenseChubby:  parseFloat(document.getElementById('mExpenseChubby').value),
     mBarista:        parseFloat(document.getElementById('mBarista').value),
     baristaStopYear,
-    frs2025:         parseFloat(document.getElementById('frs2025').value),
+    frs2025:         213000,
     cpflifePlan:     document.getElementById('cpflifePlan').value,
     cpflifeRate:     ({ standard: 0.075, escalating: 0.060, basic: 0.065 })[document.getElementById('cpflifePlan').value],
     cpflifeEscalating: document.getElementById('cpflifePlan').value === 'escalating',
