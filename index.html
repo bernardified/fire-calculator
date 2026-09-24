@@ -48,7 +48,14 @@
     color: var(--accent); margin: 18px 0 12px; border-top: 1px solid var(--border); padding-top: 14px; }
 
   /* FIRE NUMBERS */
-  .fire-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+  .fire-grid { display: grid; grid-template-columns: auto 1fr 1fr; gap: 10px 12px; margin-bottom: 16px; align-items: stretch; }
+  .fg-head { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); text-align: center; }
+  .fg-row  { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted);
+             writing-mode: vertical-rl; transform: rotate(180deg); text-align: center; }
+  .sc-regular    { border-color: #52d9a0 !important; } .sc-regular .fire-label    { color: #52d9a0; }
+  .sc-barista    { border-color: #f5c542 !important; } .sc-barista .fire-label    { color: #f5c542; }
+  .sc-chubby     { border-color: #6c8fff !important; } .sc-chubby .fire-label     { color: #6c8fff; }
+  .sc-chubbyWork { border-color: #e08c5c !important; } .sc-chubbyWork .fire-label { color: #e08c5c; }
   .fire-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
   .fire-card.barista { border-color: var(--barista); }
   .fire-card.chubby  { border-color: var(--chubby); }
@@ -109,6 +116,7 @@
   .lump-row { display:flex; gap:6px; align-items:center; margin-bottom:7px; }
   .lump-row input { flex:1; background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:7px 9px; color:var(--text); font-size:12px; outline:none; }
   .lump-row input:focus { border-color:var(--accent); }
+  .lump-row select { background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:7px 6px; color:var(--text); font-size:12px; outline:none; }
   .lump-row .lump-label { font-size:11px; color:var(--muted); white-space:nowrap; }
   .lump-row .del-btn { background:transparent; border:none; color:var(--danger); cursor:pointer; font-size:16px; padding:0 4px; line-height:1; }
 
@@ -179,7 +187,7 @@
 <body>
 <div class="page">
   <h1>🔥 FIRE Calculator</h1>
-  <p class="subtitle">Barista &amp; Chubby FIRE planning · Singapore CPF · configurable growth rate</p>
+  <p class="subtitle">Spend level × part-time work · Singapore CPF · configurable growth rate</p>
 
   <div class="grid2">
 
@@ -218,7 +226,21 @@
       <div class="input-group">
         <label>SRS Balance (SGD)</label>
         <input type="number" id="srs0" placeholder="e.g. 50000" step="1000">
-        <div class="hint">Grows at 5%/yr · withdraw from age 62 over 10 yrs</div>
+        <div class="hint">Grows at the SRS growth rate below · withdrawn over 10 yrs from your SRS withdrawal age</div>
+      </div>
+      <div class="input-group">
+        <label>SRS Growth Rate (% per year)</label>
+        <input type="number" id="srsGrowthRate" placeholder="e.g. 7" step="0.5" min="0" max="15" value="5">
+        <div class="hint">Blended return on the whole SRS balance. If SRS holds the same ETFs as your liquid portfolio, use the same rate. Uninvested SRS cash earns ~0.05%, so weight it down for any idle cash.</div>
+      </div>
+      <div class="input-group">
+        <label>SRS Withdrawal Age (first contribution date)</label>
+        <select id="srsWithdrawAge">
+          <option value="62">Before 1 Jul 2022 → age 62</option>
+          <option value="63">1 Jul 2022 – 30 Jun 2026 → age 63</option>
+          <option value="64">From 1 Jul 2026 → age 64</option>
+        </select>
+        <div class="hint">Locked to the statutory retirement age when you first contributed. Withdrawing earlier = 100% taxable + 5% penalty.</div>
       </div>
       <div class="input-group">
         <label>CPF OA Balance (SGD)</label>
@@ -230,6 +252,11 @@
         <input type="number" id="sa0" placeholder="e.g. 150000" step="1000">
         <div class="hint">Grows at 4%/yr · merges with OA into RA at 55</div>
       </div>
+      <div class="input-group">
+        <label>CPF MA Balance (SGD)</label>
+        <input type="number" id="ma0" placeholder="e.g. 79000" step="1000">
+        <div class="hint">Grows at 4%/yr · capped at the Basic Healthcare Sum ($79k in 2026); excess spills to SA until FRS, then to OA</div>
+      </div>
 
       <div class="section-divider">Monthly Contributions (pre-retirement)</div>
       <div class="input-group">
@@ -239,22 +266,17 @@
       <div class="input-group">
         <label>Monthly SRS Contribution (SGD)</label>
         <input type="number" id="mSRS" placeholder="e.g. 1275" step="100">
-        <div class="hint">Grows at 5%/yr</div>
+        <div class="hint">Annual cap $15,300 (citizens/PR) = $1,275/mo <span id="srsCapWarn" style="color:var(--danger)"></span></div>
       </div>
       <div class="input-group">
         <label>Stop SRS Contribution — Year</label>
         <input type="number" id="srsStopYear" placeholder="e.g. 2030" min="2024" max="2075">
-        <div class="hint">Age <span id="srsStopAge">—</span> · defaults to retirement year if blank</div>
+        <div class="hint">First year with no contributions · age <span id="srsStopAge">—</span> · defaults to retirement year if blank</div>
       </div>
       <div class="input-group">
-        <label>Monthly CPF OA Contribution (SGD)</label>
-        <input type="number" id="mOA" placeholder="e.g. 1500" step="100">
-        <div class="hint">Stops at retirement</div>
-      </div>
-      <div class="input-group">
-        <label>Monthly CPF SA Contribution (SGD)</label>
-        <input type="number" id="mSA" placeholder="e.g. 500" step="100">
-        <div class="hint">6% of wages · stops at retirement · grows at 4%/yr</div>
+        <label>Monthly Gross Salary (SGD)</label>
+        <input type="number" id="monthlySalary" placeholder="e.g. 8000" step="100">
+        <div class="hint">CPF computed automatically: capped at $8,000 Ordinary Wage ceiling, 2026 rates by age band, stops at retirement. <span id="cpfBreakdown"></span></div>
       </div>
       <div class="input-group">
         <label>Monthly Mortgage from OA (SGD)</label>
@@ -269,9 +291,9 @@
 
       <div class="section-divider">Expenses &amp; Income</div>
       <div class="input-group">
-        <label>Monthly Lifestyle Spend — today's $ (SGD)</label>
+        <label>Base Monthly Spend — today's $ (SGD)</label>
         <input type="number" id="mExpense" placeholder="e.g. 3500" step="100">
-        <div class="hint">Barista base spend · inflates at 3%/yr</div>
+        <div class="hint">Base spend (Regular &amp; Barista scenarios) · inflates at 3%/yr</div>
       </div>
       <div class="input-group">
         <label>Chubby Monthly Spend — today's $ (SGD)</label>
@@ -279,12 +301,20 @@
         <div class="hint">Set higher for a more comfortable lifestyle</div>
       </div>
       <div class="input-group">
-        <label>Barista Part-time Income — today's $ (SGD)</label>
-        <input type="number" id="mBarista" placeholder="e.g. 2000" step="100">
-        <div class="hint">Inflation-adjusted · offsets expenses</div>
+        <label>Part-time Work Type</label>
+        <select id="ptType">
+          <option value="employee">Employee — part-time wage</option>
+          <option value="self">Self-employed — e.g. property agent, freelance</option>
+        </select>
+        <div class="hint" id="ptTypeHint"></div>
       </div>
       <div class="input-group">
-        <label>Stop Barista Income — Year</label>
+        <label>Part-time Monthly Income — today's $ (SGD)</label>
+        <input type="number" id="mBarista" placeholder="e.g. 2000" step="100">
+        <div class="hint">Employee: gross wage. Self-employed: net trade income (commissions minus business expenses), as a monthly average. Inflates at 3%/yr. Used in the two part-time scenarios only. <span id="ptNow"></span></div>
+      </div>
+      <div class="input-group">
+        <label>Stop Part-time Work — Year</label>
         <input type="number" id="baristaStopYear" placeholder="e.g. 2055" min="2026" max="2075">
         <div class="hint">Age <span id="baristaStopAge">—</span> · income goes to $0 after this year</div>
       </div>
@@ -301,7 +331,7 @@
       </div>
 
       <div class="section-divider">Lump Sums</div>
-      <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Add one-off cash events to your liquid portfolio. Positive = injection (windfall, sale proceeds). Negative = withdrawal (house purchase, big expense).</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">One-off events, applied in January of that year. Positive = injection, negative = withdrawal. <b>Cash</b> → liquid portfolio. <b>CPF OA</b> → e.g. CPF refund from a property sale or SAVER CPF Top-Up transfer (after 55 it stays cash). <b>CPF SA</b> → cash top-up, capped at the current FRS (RA up to ERS after 55); any excess stays cash. Withdrawals always come from cash.</div>
       <div id="lumpSumRows"></div>
       <button onclick="addLumpSum()" style="background:transparent;border:1px dashed var(--border);color:var(--muted);border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;width:100%;margin-bottom:4px;">+ Add Lump Sum</button>
 
@@ -312,18 +342,35 @@
     <div>
 
       <!-- FIRE NUMBERS -->
-      <div class="fire-cards">
-        <div class="fire-card barista">
-          <div class="fire-label barista">☕ Barista FIRE</div>
-          <div class="fire-number" id="fireBarista">—</div>
+      <div class="fire-grid">
+        <div></div>
+        <div class="fg-head">No work</div>
+        <div class="fg-head">With part-time work</div>
+        <div class="fg-row">Base spend</div>
+        <div class="fire-card sc-regular">
+          <div class="fire-label" id="lbl-regular"></div>
+          <div class="fire-number" id="fire-regular">—</div>
           <div class="fire-sub">Liquid needed at retirement</div>
-          <div id="gapBarista" class="fire-gap"></div>
+          <div id="gap-regular" class="fire-gap"></div>
         </div>
-        <div class="fire-card chubby">
-          <div class="fire-label chubby">🍾 Chubby FIRE</div>
-          <div class="fire-number" id="fireChubby">—</div>
+        <div class="fire-card sc-barista">
+          <div class="fire-label" id="lbl-barista"></div>
+          <div class="fire-number" id="fire-barista">—</div>
           <div class="fire-sub">Liquid needed at retirement</div>
-          <div id="gapChubby" class="fire-gap"></div>
+          <div id="gap-barista" class="fire-gap"></div>
+        </div>
+        <div class="fg-row">Chubby spend</div>
+        <div class="fire-card sc-chubby">
+          <div class="fire-label" id="lbl-chubby"></div>
+          <div class="fire-number" id="fire-chubby">—</div>
+          <div class="fire-sub">Liquid needed at retirement</div>
+          <div id="gap-chubby" class="fire-gap"></div>
+        </div>
+        <div class="fire-card sc-chubbyWork">
+          <div class="fire-label" id="lbl-chubbyWork"></div>
+          <div class="fire-number" id="fire-chubbyWork">—</div>
+          <div class="fire-sub">Liquid needed at retirement</div>
+          <div id="gap-chubbyWork" class="fire-gap"></div>
         </div>
       </div>
 
@@ -342,7 +389,7 @@
           <div class="val" id="cpflifePayout">—</div>
         </div>
         <div class="info-box">
-          <div class="label">Barista Income at Retirement (inflation-adj.)</div>
+          <div class="label">Part-time Wage at Retirement (inflation-adj.)</div>
           <div class="val" id="baristaInflAdj">—</div>
         </div>
       </div>
@@ -371,8 +418,10 @@
       <div class="panel">
         <div class="panel-title">Year-by-Year Projection</div>
         <div class="tab-bar">
-          <button class="tab-btn active" onclick="switchTab('barista',this)">☕ Barista</button>
-          <button class="tab-btn" onclick="switchTab('chubby',this)">🍾 Chubby</button>
+          <button class="tab-btn scen-tab active" onclick="switchTab('regular',this)">🌱 Regular</button>
+          <button class="tab-btn scen-tab" onclick="switchTab('barista',this)">☕ Barista</button>
+          <button class="tab-btn scen-tab" onclick="switchTab('chubby',this)">🍾 Chubby</button>
+          <button class="tab-btn scen-tab" onclick="switchTab('chubbyWork',this)">💼 Chubby Barista</button>
         </div>
         <div class="table-wrap">
           <table id="projTable">
@@ -384,10 +433,11 @@
                 <th>SRS</th>
                 <th>CPF OA</th>
                 <th>CPF SA</th>
+                <th>CPF MA</th>
                 <th>CPF RA</th>
                 <th>Total NW</th>
                 <th title="Annual net draw from liquid. Negative = portfolio growing. Excludes SRS and CPF LIFE income.">Liquid Draw</th>
-                <th title="Total income from all non-liquid sources: SRS + CPF LIFE + Barista income">Other Income</th>
+                <th title="SRS draws + CPF LIFE + part-time take-home pay">Other Income</th>
               </tr>
             </thead>
             <tbody id="projBody"></tbody>
@@ -412,249 +462,276 @@ function pmtAmortize(principal, annualRate, nMonths) {
   return principal * r / (1 - Math.pow(1 + r, -nMonths));
 }
 
-function simulate(params, scenario) {
+// ── CPF RULES (2026) ──────────────────────────────────────────────────────────
+const CPF_OW_CEILING = 8000;      // monthly Ordinary Wage ceiling from 1 Jan 2026
+const BHS_2026       = 79000;     // Basic Healthcare Sum 2026
+const BHS_GROWTH     = 0.045;     // assumed annual BHS increase until the cohort turns 65
+
+// Contribution + allocation as % of wage (2026). "sa" = SA before 55, RA after 55.
+// Age 55 and below: official 2026 table. Above 55: official 2026 totals; the
+// OA/RA/MA split is approximate (MA ~10.5%, the 2026 increases go to RA).
+function cpfRates(age) {
+  if (age <= 35) return { ee: 0.20,  er: 0.17,  oa: 0.23,  sa: 0.06,  ma: 0.08  };
+  if (age <= 45) return { ee: 0.20,  er: 0.17,  oa: 0.21,  sa: 0.07,  ma: 0.09  };
+  if (age <= 50) return { ee: 0.20,  er: 0.17,  oa: 0.19,  sa: 0.08,  ma: 0.10  };
+  if (age <= 55) return { ee: 0.20,  er: 0.17,  oa: 0.15,  sa: 0.115, ma: 0.105 };
+  if (age <= 60) return { ee: 0.18,  er: 0.16,  oa: 0.12,  sa: 0.115, ma: 0.105 };
+  if (age <= 65) return { ee: 0.125, er: 0.125, oa: 0.035, sa: 0.11,  ma: 0.105 };
+  if (age <= 70) return { ee: 0.075, er: 0.09,  oa: 0.01,  sa: 0.05,  ma: 0.105 };
+  return               { ee: 0.05,  er: 0.075, oa: 0.01,  sa: 0.01,  ma: 0.105 };
+}
+function cpfMonthly(gross, age) {
+  const w = Math.min(Math.max(gross || 0, 0), CPF_OW_CEILING);
+  const r = cpfRates(age);
+  return { wage: w, oa: w * r.oa, sa: w * r.sa, ma: w * r.ma,
+           employee: w * r.ee, employer: w * r.er };
+}
+// Self-employed: only compulsory MediSave, on annual Net Trade Income (NTI).
+// Full rate above $18k NTI; half rate $6k–12k; linear phase-in $12k–18k; nil ≤ $6k.
+// Capped at rate × annual OW ceiling ($96k in 2026). Age bands: <35, 35–44, 45–49, 50+.
+function seMedisaveAnnual(nti, age) {
+  const r = age < 35 ? 0.08 : age < 45 ? 0.09 : age < 50 ? 0.10 : 0.105;
+  if (nti <= 6000) return 0;
+  const low = r / 2;
+  let amt;
+  if (nti <= 12000)      amt = low * nti;
+  else if (nti <= 18000) amt = low * 12000 + ((r * 18000 - low * 12000) / 6000) * (nti - 12000);
+  else                   amt = r * nti;
+  return Math.min(amt, r * CPF_OW_CEILING * 12);
+}
+// Part-time CPF: employee → full CPF on wages; self-employed → MediSave only, paid by you
+function partTimeCPF(gross, age, type) {
+  if (type === 'self') {
+    const ma = seMedisaveAnnual(gross * 12, age) / 12;
+    return { wage: gross, oa: 0, sa: 0, ma, employee: ma, employer: 0 };
+  }
+  return cpfMonthly(gross, age);
+}
+// BHS rises yearly until the year you turn 65, then fixed for life
+function bhsFor(year, birthYear) {
+  return BHS_2026 * Math.pow(1 + BHS_GROWTH, Math.min(year, birthYear + 65) - 2026);
+}
+function frsFor(year, frs2025) { return frs2025 * Math.pow(1.035, year - 2025); }
+
+// ── SCENARIOS: spend level × part-time work ──────────────────────────────────
+const SCENARIOS = [
+  { key: 'regular',    spend: 'base',   work: false, emoji: '🌱', name: 'Regular FIRE',   color: '#52d9a0' },
+  { key: 'barista',    spend: 'base',   work: true,  emoji: '☕', name: 'Barista FIRE',   color: '#f5c542' },
+  { key: 'chubby',     spend: 'chubby', work: false, emoji: '🍾', name: 'Chubby FIRE',    color: '#6c8fff' },
+  { key: 'chubbyWork', spend: 'chubby', work: true,  emoji: '💼', name: 'Chubby Barista', color: '#e08c5c' },
+];
+const SC = Object.fromEntries(SCENARIOS.map(s => [s.key, s]));
+
+// ── SIMULATION ───────────────────────────────────────────────────────────────
+// start (optional): resume from a saved state — used by the FIRE-number search
+function simulate(params, scenarioKey, start) {
   const {
     birthYear, retireYear,
-    liquid0, srs0, oa0, sa0,
-    mLiquid, mSRS, mOA, mSA, mMortgage, mortgageEndYear,
+    liquid0, srs0, oa0, sa0, ma0,
+    mLiquid, mSRS, monthlySalary, mMortgage, mortgageEndYear,
     mExpense, mExpenseChubby, mBarista,
     baristaStopYear, srsStopYear, lumpSums,
     frs2025, cpflifeRate, cpflifeEscalating,
-    portfolioGrowthRate
+    portfolioGrowthRate, srsGrowthRate, srsWithdrawAge, ptType
   } = params;
-  // Build lump sum lookup: year → net amount
+  const sc = SC[scenarioKey];
+
   const lumpMap = {};
-  (lumpSums || []).forEach(({year, amount}) => { lumpMap[year] = (lumpMap[year] || 0) + amount; });
+  (lumpSums || []).forEach(ls => { (lumpMap[ls.year] = lumpMap[ls.year] || []).push(ls); });
 
-  const SIM_START = new Date().getFullYear();
-  const SIM_END   = birthYear + 95;
-
-  const baseExpense = scenario === 'chubby' ? mExpenseChubby : mExpense;
+  const SIM_START  = start ? start.year : new Date().getFullYear();
+  const SIM_END    = birthYear + 95;
+  const baseExpense = sc.spend === 'chubby' ? mExpenseChubby : mExpense;
 
   const YR_RETIRE  = retireYear;
   const YR_RA      = birthYear + 55;
-  const YR_SRS_ST  = birthYear + 62;
-  const YR_SRS_END = birthYear + 72;
+  const SRS_RATE   = (srsGrowthRate ?? 0.05);
+  const YR_SRS_ST  = birthYear + (srsWithdrawAge || 62);
+  const YR_SRS_END = YR_SRS_ST + 9;
   const YR_CPFLIFE = birthYear + 65;
-  const FRS_AT_55  = frs2025 * Math.pow(1.035, YR_RA - 2025);
+  const FRS_AT_55  = frsFor(YR_RA, frs2025);
+  const ERS_AT_55  = 2 * FRS_AT_55;
 
   const gL  = 1 + monthlyRate(portfolioGrowthRate || 0.07);
-  const gS  = 1 + monthlyRate(0.05);
+  const gS  = 1 + monthlyRate(SRS_RATE);
   const gOA = 1 + monthlyRate(0.025);
-  const gSA = 1 + monthlyRate(0.04);
-  const gRA = 1 + monthlyRate(0.04);
-  const gEX = 1 + monthlyRate(portfolioGrowthRate || 0.07);
+  const g4  = 1 + monthlyRate(0.04);     // SA, RA, MA
   const gI  = 1 + monthlyRate(0.03);
 
-  let liquid = liquid0, srs = srs0, oa = oa0, sa = sa0, ra = 0, excess = 0;
-  let oaDepleted = false, raMerged = false, cpflifeMo = 0, srsDraw = 0;
-  let oaDepletedYear = null, raAtConversion = 0;
-  let inflFactor = 1.0;
+  let st = start ? { ...start } : {
+    liquid: liquid0 || 0, srs: srs0 || 0, oa: oa0 || 0, sa: sa0 || 0, ma: ma0 || 0, ra: 0,
+    raMerged: false, infl: 1, cpflifeMo: 0, srsDraw: 0,
+  };
+  let { liquid, srs, oa, sa, ma, ra, raMerged, infl, cpflifeMo, srsDraw } = st;
+  let cpflifeInitial = start ? start.cpflifeMo : 0;
+  let oaDepletedYear = null, raAtConversion = 0, retireState = null;
+  let minLiqPost = Infinity;
+  const lumpNotes = [];
 
-  // Annual accumulators (reset each January)
-  let yearLiquidDraw = 0;   // net draw from liquid (positive = withdrawing)
-  let yearOtherIncome = 0;  // SRS + CPF LIFE + Barista income
+  const yearly = {};
+  let yearLiquidDraw = 0, yearOtherIncome = 0;
 
-  const yearly  = {};
-  const totalMo = (SIM_END - SIM_START + 1) * 12;
-
-  for (let m = 0; m < totalMo; m++) {
-    const year  = SIM_START + Math.floor(m / 12);
-    const month = (m % 12) + 1;
-    const age   = year - birthYear;
-
-    // Reset annual accumulators each January
-    if (month === 1) { yearLiquidDraw = 0; yearOtherIncome = 0; }
-
-    // ── ONE-TIME EVENTS ──
-    if (year === YR_RA && month === 1 && !raMerged) {
-      const totalCPF = oa + sa;
-      ra     = Math.min(totalCPF, FRS_AT_55);
-      const cpfExcess = Math.max(totalCPF - FRS_AT_55, 0);
-      liquid += cpfExcess;   // excess flows directly into liquid portfolio
-      excess  = 0;
-      oa = sa = 0;
-      oaDepleted = true;
-      raMerged   = true;
+  // Credit CPF contributions (salary or part-time) to the right accounts
+  function creditCPF(c, year) {
+    ma += c.ma;                                   // BHS overflow handled after growth
+    if (!raMerged) { sa += c.sa; oa += c.oa; return; }
+    // After 55: RA share goes to RA up to FRS, rest to OA (withdrawable → liquid)
+    let toRA = c.sa;
+    if (year < YR_CPFLIFE) {
+      const t = Math.min(toRA, Math.max(FRS_AT_55 - ra, 0));
+      ra += t; toRA -= t;
+    } else if (toRA > 0) {
+      cpflifeMo += toRA * cpflifeRate / 12;         // after 65: new RA money raises CPF LIFE payout
+      toRA = 0;
     }
-    if (year === YR_SRS_ST && month === 1 && srsDraw === 0 && srs > 0) {
-      srsDraw = pmtAmortize(srs, 0.05, 120);
-    }
-    if (year === YR_CPFLIFE && month === 1 && cpflifeMo === 0) {
-      cpflifeMo = ra * cpflifeRate / 12;
-      raAtConversion = ra;
-      ra = 0;
-    }
-    // Escalating plan: increase payout by 2% each January after conversion
-    if (cpflifeEscalating && cpflifeMo > 0 && year > YR_CPFLIFE && month === 1) {
-      cpflifeMo *= 1.02;
-    }
+    liquid += c.oa + toRA;
+  }
 
-    // ── CASH FLOWS ──
-    if (year < YR_RETIRE) {
-      // Accumulation — contributions, no lifestyle draw
-      liquid += mLiquid;
-      if (year < (srsStopYear || YR_RETIRE) || (year === (srsStopYear || YR_RETIRE) && month === 1)) srs += mSRS;
-      sa     += (mSA || 0);
-      const netOA = mOA - (year <= mortgageEndYear ? mMortgage : 0);
-      oa += netOA;
-      if (oa < 0) { oa = 0; oaDepleted = true; }
-      // No drawdown during accumulation
-    } else {
-      // Post-retirement
+  for (let year = SIM_START; year <= SIM_END; year++) {
+    const age = year - birthYear;
+    for (let month = 1; month <= 12; month++) {
+      if (year === YR_RETIRE && month === 1 && !retireState) {
+        retireState = { year, liquid, srs, oa, sa, ma, ra, raMerged, infl, cpflifeMo, srsDraw };
+      }
+      if (month === 1) { yearLiquidDraw = 0; yearOtherIncome = 0; }
+
+      // ── ONE-TIME EVENTS ──
+      if (year === YR_RA && month === 1 && !raMerged) {
+        const tot = oa + sa;
+        ra = Math.min(tot, FRS_AT_55);
+        liquid += Math.max(tot - FRS_AT_55, 0);   // above FRS: withdrawable
+        oa = sa = 0; raMerged = true;
+      }
+      if (year === YR_SRS_ST && month === 1 && srsDraw === 0 && srs > 0) {
+        srsDraw = pmtAmortize(srs, SRS_RATE, 120);
+      }
+      if (year === YR_CPFLIFE && month === 1 && cpflifeMo === 0 && ra > 0) {
+        cpflifeMo = ra * cpflifeRate / 12; cpflifeInitial = cpflifeMo;
+        raAtConversion = ra; ra = 0;
+      }
+      if (cpflifeEscalating && cpflifeMo > 0 && year > YR_CPFLIFE && month === 1) cpflifeMo *= 1.02;
+
+      const working = year < YR_RETIRE;
+
+      // ── MORTGAGE: OA first, shortfall from cash (liquid) ──
       let mortgageCash = 0;
-      if (year <= mortgageEndYear && !oaDepleted && oa > 0) {
-        const draw = Math.min(oa, mMortgage);
-        oa -= draw;
-        mortgageCash = mMortgage - draw;
-        if (oa <= 0) { oa = 0; oaDepleted = true; if (!oaDepletedYear) oaDepletedYear = year; }
-      } else if (year <= mortgageEndYear) {
-        mortgageCash = mMortgage;
-        if (!oaDepletedYear && oaDepleted) oaDepletedYear = year;
+      if (year <= mortgageEndYear && mMortgage > 0) {
+        const fromOA = Math.min(Math.max(oa, 0), mMortgage);
+        oa -= fromOA;
+        mortgageCash = mMortgage - fromOA;
+        if (mortgageCash > 0.01 && !oaDepletedYear) oaDepletedYear = year;
       }
 
-      let srsIncome = 0;
-      if (srsDraw > 0 && srs > 0 && year <= YR_SRS_END) {
-        srsIncome = Math.min(srsDraw, srs);
-        srs -= srsIncome;
+      if (working) {
+        liquid += (mLiquid || 0) - mortgageCash;
+        yearLiquidDraw += mortgageCash - (mLiquid || 0);
+        if (year < (srsStopYear || YR_RETIRE)) srs += (mSRS || 0);
+        creditCPF(cpfMonthly(monthlySalary, age), year);
+      } else {
+        let srsIncome = 0;
+        if (srsDraw > 0 && srs > 0 && year <= YR_SRS_END) {
+          srsIncome = Math.min(srsDraw, srs); srs -= srsIncome;
+        }
+        let ptTakeHome = 0;
+        if (sc.work && year <= (baristaStopYear || 9999) && mBarista > 0) {
+          const gross = mBarista * infl;
+          const c = partTimeCPF(gross, age, ptType);
+          ptTakeHome = gross - c.employee;
+          creditCPF(c, year);
+        }
+        const income  = srsIncome + cpflifeMo + ptTakeHome;
+        const netDraw = baseExpense * infl + mortgageCash - income;
+        liquid -= netDraw;
+        yearLiquidDraw  += netDraw;
+        yearOtherIncome += income;
       }
 
-      const baristaActive = scenario === 'barista' && year <= (baristaStopYear || 9999);
-      const baristaInc  = baristaActive ? mBarista * inflFactor : 0;
-      const cpflifeInc  = cpflifeMo;
-      const expNominal  = baseExpense * inflFactor + mortgageCash;
-      const totalIncome = srsIncome + cpflifeInc + baristaInc;
-      const netDraw     = expNominal - totalIncome;
+      // ── LUMP SUMS (January) ──
+      if (month === 1 && lumpMap[year]) {
+        lumpMap[year].forEach(({ amount, dest }) => {
+          let toCash = amount;
+          if (amount > 0 && dest === 'oa') {
+            if (!raMerged) { oa += amount; toCash = 0; }
+            // after 55 the model treats OA as withdrawable → stays cash
+          } else if (amount > 0 && dest === 'sa') {
+            if (!raMerged) {
+              const t = Math.min(amount, Math.max(frsFor(year, frs2025) - sa, 0));
+              sa += t; toCash = amount - t;
+              if (toCash > 0) lumpNotes.push(`${year}: ${fmt(toCash)} of SA top-up exceeds current FRS — kept as cash`);
+            } else if (year < YR_CPFLIFE) {
+              const t = Math.min(amount, Math.max(ERS_AT_55 - ra, 0));
+              ra += t; toCash = amount - t;
+              if (toCash > 0) lumpNotes.push(`${year}: ${fmt(toCash)} of RA top-up exceeds ERS — kept as cash`);
+            } else {
+              lumpNotes.push(`${year}: SA/RA top-up after 65 kept as cash`);
+            }
+          }
+          liquid += toCash;
+          yearLiquidDraw -= toCash;
+        });
+      }
 
-      liquid -= netDraw;
+      // ── GROWTH ──
+      liquid *= gL;
+      srs    *= gS;
+      if (oa > 0)    oa *= gOA;
+      if (!raMerged) sa *= g4;
+      if (ra > 0)    ra *= g4;
+      ma *= g4;
+      infl *= gI;
 
-      // Accumulate annual totals
-      yearLiquidDraw  += netDraw;
-      yearOtherIncome += srsIncome + cpflifeInc + baristaInc;
-    }
+      // ── MEDISAVE OVERFLOW above BHS ──
+      const bhs = bhsFor(year, birthYear);
+      if (ma > bhs) {
+        let ex = ma - bhs; ma = bhs;
+        if (year >= YR_CPFLIFE) {
+          ex = 0;   // after 65: assume MediShield Life / IP premiums absorb MA interest
+        } else if (!raMerged) {
+          const t = Math.min(ex, Math.max(frsFor(year, frs2025) - sa, 0));
+          sa += t; oa += ex - t;
+        } else {
+          const t = Math.min(ex, Math.max(FRS_AT_55 - ra, 0));
+          ra += t; liquid += ex - t;
+        }
+      }
 
-    // Apply lump sum at January of the event year (after contributions/draws)
-    if (month === 1 && lumpMap[year]) {
-      liquid += lumpMap[year];
-      yearLiquidDraw -= lumpMap[year]; // injection reduces net draw; withdrawal increases it
-    }
+      if (year >= YR_RETIRE && liquid < minLiqPost) minLiqPost = liquid;
 
-    // ── GROWTH ──
-    liquid *= gL;
-    srs    *= gS;
-    if (!oaDepleted) oa *= gOA;
-    if (!raMerged)   sa *= gSA;
-    if (ra > 0)      ra *= gRA;
-    inflFactor *= gI;
-
-    // ── YEAR-END SNAPSHOT ──
-    if (month === 12) {
-      // At CPF LIFE conversion year, show the RA amount that converted (not 0)
-      const raDisplay = (ra === 0 && year === YR_CPFLIFE) ? raAtConversion : ra;
-      yearly[year] = {
-        year, age,
-        liquid, srs, oa, sa,
-        ra: raDisplay,
-        raConverted: (year === YR_CPFLIFE),
-        cpflifeMo,
-        total: liquid + srs + oa + sa + ra,
-        annualLiquidDraw:  yearLiquidDraw,
-        annualOtherIncome: yearOtherIncome,
-      };
+      if (month === 12) {
+        const raDisplay = (ra === 0 && year === YR_CPFLIFE) ? raAtConversion : ra;
+        yearly[year] = {
+          year, age, liquid, srs, oa, sa, ma,
+          ra: raDisplay, raConverted: (year === YR_CPFLIFE),
+          cpflifeMo,
+          total: liquid + srs + oa + sa + ma + ra,
+          annualLiquidDraw: yearLiquidDraw,
+          annualOtherIncome: yearOtherIncome,
+        };
+      }
     }
   }
 
-  yearly._meta = { FRS_AT_55, oaDepletedYear, cpflifeMo, YR_RA, YR_SRS_ST, YR_CPFLIFE, YR_RETIRE };
+  yearly._meta = { FRS_AT_55, oaDepletedYear, cpflifeMo: cpflifeInitial, YR_RA, YR_SRS_ST, YR_SRS_END,
+                   YR_CPFLIFE, YR_RETIRE, srsAnnualDraw: srsDraw * 12, lumpNotes };
+  yearly._retireState = retireState;
+  yearly._minLiqPost  = minLiqPost;
   return yearly;
 }
 
-// ── FIRE NUMBER (binary search on liquid at retirement) ─────────────────────
-
-function findFireNumber(params, scenario, simResult) {
-  // Use SRS/OA/SA from the simulate() result at end of pre-retirement year.
-  // This guarantees the binary search tests the same asset trajectory shown in the table,
-  // eliminating divergence from a separate accumulation loop.
-  const { retireYear } = params;
-  const SIM_START = new Date().getFullYear();
-  const preY = simResult && simResult[retireYear - 1];
-  const srs = preY ? preY.srs : params.srs0;
-  const oa  = preY ? preY.oa  : params.oa0;
-  const sa  = preY ? preY.sa  : params.sa0;
-
-  // Binary search on liquid at retirement
-  function test(L) {
-    const p2 = { ...params, liquid0: L, srs0: srs, oa0: oa, sa0: sa, mLiquid: 0, mSRS: 0, mOA: 0 };
-    // Manually simulate post-retirement only
-    const { birthYear, retireYear, mMortgage, mortgageEndYear, mExpense, mExpenseChubby, mBarista, baristaStopYear, lumpSums, frs2025, cpflifeRate, cpflifeEscalating } = params;
-    const lumpMap2 = {};
-    (lumpSums || []).forEach(({year, amount}) => { lumpMap2[year] = (lumpMap2[year] || 0) + amount; });
-    const baseExpense = scenario === 'chubby' ? mExpenseChubby : mExpense;
-    const SIM_END   = birthYear + 95;
-    const YR_RA     = birthYear + 55;
-    const YR_SRS_ST = birthYear + 62;
-    const YR_SRS_END = birthYear + 72;
-    const YR_CPFLIFE = birthYear + 65;
-    const FRS_AT_55  = frs2025 * Math.pow(1.035, YR_RA - 2025);
-
-    const _pgr = params.portfolioGrowthRate || 0.07;
-    const gL = 1+monthlyRate(_pgr), gS=1+monthlyRate(0.05), gOA=1+monthlyRate(0.025),
-          gSA=1+monthlyRate(0.04), gRA=1+monthlyRate(0.04), gEX=1+monthlyRate(_pgr),
-          gI=1+monthlyRate(0.03);
-
-    let liq = L, _srs = srs, _oa = oa, _sa = sa, _ra = 0, _ex = 0;
-    let oaDep = (_oa <= 0), raMer = false, cpfMo = 0, srsDr = 0;
-    let infl = Math.pow(1.03, retireYear - SIM_START);
-
-    const totalMo = (SIM_END - retireYear + 1) * 12;
-    for (let m = 0; m < totalMo; m++) {
-      const year = retireYear + Math.floor(m/12);
-      const month = (m%12)+1;
-      const age = year - birthYear;
-
-      if (year===YR_RA && month===1 && !raMer) {
-        const tot = _oa+_sa;
-        _ra  = Math.min(tot, FRS_AT_55);
-        liq += Math.max(tot - FRS_AT_55, 0);  // excess into liquid
-        _ex  = 0;
-        _oa=_sa=0; oaDep=true; raMer=true;
-      }
-      if (year===YR_SRS_ST && month===1 && srsDr===0 && _srs>0) srsDr=pmtAmortize(_srs,0.05,120);
-      if (year===YR_CPFLIFE && month===1 && cpfMo===0) { cpfMo=_ra*cpflifeRate/12; _ra=0; }
-      if (cpflifeEscalating && cpfMo>0 && year>YR_CPFLIFE && month===1) cpfMo*=1.02;
-
-      let mortCash=0;
-      if (year<=mortgageEndYear && !oaDep && _oa>0) {
-        const d=Math.min(_oa,mMortgage); _oa-=d; mortCash=mMortgage-d;
-        if(_oa<=0){_oa=0;oaDep=true;}
-      } else if (year<=mortgageEndYear) mortCash=mMortgage;
-
-      let srsInc=0;
-      if(srsDr>0&&_srs>0&&year<=YR_SRS_END){srsInc=Math.min(srsDr,_srs);_srs-=srsInc;}
-
-      const baristaOn = scenario==='barista' && year<=(baristaStopYear||9999);
-      const bInc = baristaOn ? mBarista*infl : 0;
-      const exp  = baseExpense*infl + mortCash;
-      const inc  = srsInc+cpfMo+bInc;
-      liq -= (exp-inc);
-
-      if (month===1 && lumpMap2[year]) liq += lumpMap2[year];
-
-      liq*=gL; _srs*=gS;
-      if(!oaDep)_oa*=gOA; if(!raMer)_sa*=gSA;
-      if(_ra>0)_ra*=gRA;
-      infl*=(1+monthlyRate(0.03));
-
-      if(liq<0) return false;
-    }
-    return true;
+// ── FIRE NUMBER: minimum liquid at the start of retirement that never runs out ──
+// Re-runs the exact same engine from the retirement-date state, so it can't drift
+// from the table.
+function findFireNumber(params, scenarioKey, simResult) {
+  const rs = simResult && simResult._retireState;
+  if (!rs) return 0;
+  const ok = L => simulate(params, scenarioKey, { ...rs, liquid: L })._minLiqPost >= 0;
+  let lo = 0, hi = 5e6;
+  while (!ok(hi) && hi < 1e8) { lo = hi; hi *= 2; }
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    if (ok(mid)) hi = mid; else lo = mid;
   }
-
-  let lo=0, hi=5000000;
-  for(let i=0;i<40;i++) {
-    const mid=(lo+hi)/2;
-    if(test(mid)) hi=mid; else lo=mid;
-  }
-  return Math.ceil(hi/1000)*1000;
+  return Math.ceil(hi / 1000) * 1000;
 }
 
 // ── FORMATTING ───────────────────────────────────────────────────────────────
@@ -665,9 +742,9 @@ function fmtN(n) { return Math.round(n).toLocaleString(); }
 // ── SAVE / LOAD PROFILE (localStorage) ──────────────────────────────────────
 
 const STORAGE_KEY = 'fire_calc_profile';
-const FIELD_IDS   = ['dob','retireYear','portfolioGrowthRate','liquid0','srs0','oa0','sa0',
-                     'mLiquid','mSRS','srsStopYear','mOA','mSA','mMortgage','mortgageEndYear',
-                     'mExpense','mExpenseChubby','mBarista','baristaStopYear',
+const FIELD_IDS   = ['dob','retireYear','portfolioGrowthRate','liquid0','srs0','srsGrowthRate','srsWithdrawAge','oa0','sa0','ma0',
+                     'mLiquid','mSRS','srsStopYear','monthlySalary','mMortgage','mortgageEndYear',
+                     'mExpense','mExpenseChubby','ptType','mBarista','baristaStopYear',
                      'cpflifePlan'];
 
 function saveProfile() {
@@ -695,7 +772,7 @@ function loadProfile() {
     if (data._lumpSums && data._lumpSums.length) {
       document.getElementById('lumpSumRows').innerHTML = '';
       lumpSumCount = 0;
-      data._lumpSums.forEach(({ year, amount }) => addLumpSum(year, amount));
+      data._lumpSums.forEach(({ year, amount, dest }) => addLumpSum(year, amount, dest || 'cash'));
     }
     if (data._savedAt) {
       document.getElementById('saveStatus').textContent = 'Last saved ' + data._savedAt;
@@ -712,12 +789,7 @@ function clearProfile() {
   });
   document.getElementById('lumpSumRows').innerHTML = '';
   document.getElementById('saveStatus').textContent = '';
-  // Reset results to blank state
-  ['fireBarista','fireChubby','projLiquid','frsAt55','cpflifePayout'].forEach(id => {
-    document.getElementById(id).textContent = '—';
-  });
-  document.getElementById('milestones').innerHTML = '';
-  document.getElementById('projBody').innerHTML = '';
+  setBlank();
   if (fireChart) { fireChart.destroy(); fireChart = null; }
 }
 
@@ -725,7 +797,7 @@ function clearProfile() {
 
 let lumpSumCount = 0;
 
-function addLumpSum(year = '', amount = '') {
+function addLumpSum(year = '', amount = '', dest = 'cash') {
   const id = ++lumpSumCount;
   const div = document.createElement('div');
   div.className = 'lump-row';
@@ -735,6 +807,11 @@ function addLumpSum(year = '', amount = '') {
     <input type="number" id="ls-yr-${id}" value="${year}" placeholder="2032" min="2026" max="2075" style="max-width:80px">
     <span class="lump-label">SGD</span>
     <input type="number" id="ls-amt-${id}" value="${amount}" placeholder="+50000" step="1000">
+    <select id="ls-dest-${id}" title="Where the money goes">
+      <option value="cash"${dest==='cash'?' selected':''}>Cash</option>
+      <option value="oa"${dest==='oa'?' selected':''}>CPF OA</option>
+      <option value="sa"${dest==='sa'?' selected':''}>CPF SA</option>
+    </select>
     <button class="del-btn" onclick="document.getElementById('ls-${id}').remove()">×</button>
   `;
   document.getElementById('lumpSumRows').appendChild(div);
@@ -747,16 +824,16 @@ function getLumpSums() {
     const id = row.id.replace('ls-','');
     const yr  = parseInt(document.getElementById('ls-yr-'+id)?.value);
     const amt = parseFloat(document.getElementById('ls-amt-'+id)?.value);
-    if (!isNaN(yr) && !isNaN(amt) && amt !== 0) events.push({ year: yr, amount: amt });
+    const dest = document.getElementById('ls-dest-'+id)?.value || 'cash';
+    if (!isNaN(yr) && !isNaN(amt) && amt !== 0) events.push({ year: yr, amount: amt, dest });
   });
   return events;
 }
 
 // ── UI ───────────────────────────────────────────────────────────────────────
 
-let currentScenario = 'barista';
-let lastBarista = null, lastChubby = null;
-let lastFireB = 0, lastFireC = 0, lastParams = null;
+let currentScenario = 'regular';
+let results = {}, fires = {}, lastParams = null;
 
 function getParams() {
   const dob = new Date(document.getElementById('dob').value);
@@ -768,7 +845,27 @@ function getParams() {
   // Update age hints
   document.getElementById('baristaStopAge').textContent = baristaStopYear - birthYear;
   if (!isNaN(srsStopYear) && !isNaN(birthYear)) document.getElementById('srsStopAge').textContent = srsStopYear - birthYear;
+  const mSRSval = parseFloat(document.getElementById('mSRS').value) || 0;
+  document.getElementById('srsCapWarn').textContent = mSRSval * 12 > 15300
+    ? '· ⚠ ' + fmt(mSRSval * 12) + '/yr exceeds cap — excess gets no tax relief' : '';
+  const salVal = parseFloat(document.getElementById('monthlySalary').value) || 0;
+  if (!isNaN(birthYear) && salVal > 0) {
+    const nowAge = new Date().getFullYear() - birthYear;
+    const c = cpfMonthly(salVal, nowAge);
+    document.getElementById('cpfBreakdown').textContent =
+      `Now (age ${nowAge}): you ${fmt(c.employee)} + employer ${fmt(c.employer)} = ${fmt(c.employee + c.employer)}/mo → OA ${fmt(c.oa)} · SA ${fmt(c.sa)} · MA ${fmt(c.ma)} (before BHS spillover).`;
+  } else document.getElementById('cpfBreakdown').textContent = '';
   if (!isNaN(birthYear)) document.getElementById('mortgageEndAge').textContent = isNaN(rawMortgageEnd) ? '65 (default)' : mortgageEndYear - birthYear;
+  const ptType = document.getElementById('ptType').value;
+  document.getElementById('ptTypeHint').textContent = ptType === 'self'
+    ? 'No employer CPF and no OA/SA contributions. Compulsory MediSave only (8–10.5% of net trade income above $6k/yr, by age), paid out of your income.'
+    : 'Employee 20% + employer 17% (≤55) credited to OA / SA (RA after 55) / MA; employee share deducted from take-home.';
+  const ptVal = parseFloat(document.getElementById('mBarista').value) || 0;
+  if (!isNaN(birthYear) && ptVal > 0) {
+    const nowAge = new Date().getFullYear() - birthYear;
+    const c = partTimeCPF(ptVal, nowAge, ptType);
+    document.getElementById('ptNow').textContent = `At today's age: take-home ${fmt(ptVal - c.employee)}/mo · CPF ${fmt(c.oa + c.sa + c.ma)}/mo (OA ${fmt(c.oa)} · SA ${fmt(c.sa)} · MA ${fmt(c.ma)}).`;
+  } else document.getElementById('ptNow').textContent = '';
   const planHints = { standard: 'Fixed payout from age 65', escalating: 'Starts lower, grows +2%/yr from age 65', basic: 'Fixed payout, preserves bequest' };
   document.getElementById('cpflifePlanHint').textContent = planHints[document.getElementById('cpflifePlan').value];
   return {
@@ -777,18 +874,21 @@ function getParams() {
     portfolioGrowthRate:  (parseFloat(document.getElementById('portfolioGrowthRate').value) || 7) / 100,
     liquid0:              parseFloat(document.getElementById('liquid0').value),
     srs0:            parseFloat(document.getElementById('srs0').value),
+    srsGrowthRate:   (v => isNaN(v) ? 0.05 : v / 100)(parseFloat(document.getElementById('srsGrowthRate').value)),
+    srsWithdrawAge:  parseInt(document.getElementById('srsWithdrawAge').value) || 62,
     oa0:             parseFloat(document.getElementById('oa0').value),
     sa0:             parseFloat(document.getElementById('sa0').value),
+    ma0:             parseFloat(document.getElementById('ma0').value) || 0,
     mLiquid:         parseFloat(document.getElementById('mLiquid').value),
     mSRS:            parseFloat(document.getElementById('mSRS').value),
     srsStopYear:     srsStopYear || parseInt(document.getElementById('retireYear').value),
-    mOA:             parseFloat(document.getElementById('mOA').value),
-    mSA:             parseFloat(document.getElementById('mSA').value) || 0,
+    monthlySalary:   parseFloat(document.getElementById('monthlySalary').value) || 0,
     mMortgage:       parseFloat(document.getElementById('mMortgage').value),
     mortgageEndYear,
     mExpense:        parseFloat(document.getElementById('mExpense').value),
     mExpenseChubby:  parseFloat(document.getElementById('mExpenseChubby').value),
     mBarista:        parseFloat(document.getElementById('mBarista').value),
+    ptType:          document.getElementById('ptType').value,
     baristaStopYear,
     frs2025:         213000,
     cpflifePlan:     document.getElementById('cpflifePlan').value,
@@ -798,117 +898,119 @@ function getParams() {
   };
 }
 
+function setBlank() {
+  SCENARIOS.forEach(s => {
+    document.getElementById('fire-' + s.key).textContent = '—';
+    const g = document.getElementById('gap-' + s.key); g.textContent = ''; g.className = 'fire-gap';
+  });
+  ['projLiquid','frsAt55','cpflifePayout','baristaInflAdj'].forEach(id => document.getElementById(id).textContent = '—');
+  document.getElementById('milestones').innerHTML = '';
+  document.getElementById('projBody').innerHTML = '';
+}
+
 function recalc() {
   const p = getParams();
+  if (!p.birthYear || !p.retireYear || !p.liquid0) { setBlank(); return; }
 
-  // Guard: require the essential fields before running
-  if (!p.birthYear || !p.retireYear || !p.liquid0) {
-    ['fireBarista','fireChubby','projLiquid','frsAt55','cpflifePayout'].forEach(id => {
-      document.getElementById(id).textContent = '—';
-    });
-    document.getElementById('gapBarista').textContent = '';
-    document.getElementById('gapChubby').textContent  = '';
-    document.getElementById('milestones').innerHTML = '';
-    document.getElementById('projBody').innerHTML = '';
-    return;
-  }
+  results = {}; fires = {};
+  SCENARIOS.forEach(s => {
+    results[s.key] = simulate(p, s.key);
+    fires[s.key]   = findFireNumber(p, s.key, results[s.key]);
+  });
+  lastParams = p;
 
-  lastBarista = simulate(p, 'barista');
-  lastChubby  = simulate(p, 'chubby');
+  const base = results.regular;
+  const meta = base._meta;
+  // Liquid at the START of retirement — same timing as the FIRE number
+  const rs = base._retireState;
+  const projLiq = rs ? rs.liquid : 0;
 
-  const meta = lastBarista._meta;
-  const fireB = findFireNumber(p, 'barista', lastBarista);
-  const fireC = findFireNumber(p, 'chubby',  lastChubby);
-  lastFireB = fireB; lastFireC = fireC; lastParams = p;
+  SCENARIOS.forEach(s => {
+    const good = results[s.key]._minLiqPost >= 0;
+    const gap  = projLiq - fires[s.key];
+    document.getElementById('fire-' + s.key).textContent = fmt(fires[s.key]);
+    const g = document.getElementById('gap-' + s.key);
+    g.textContent = (good ? '✓ ON TRACK +' : '✗ SHORTFALL ') + fmt(Math.abs(gap));
+    g.className   = 'fire-gap ' + (good ? 'ok' : 'miss');
+  });
 
-  // projLiq = liquid at START of retirement (end of last pre-retirement year)
-  // This matches the timing of the FIRE number (minimum liquid needed at start of retirement)
-  const projLiq = lastBarista[p.retireYear - 1] ? lastBarista[p.retireYear - 1].liquid : 0;
+  document.getElementById('projLiquid').textContent = fmt(projLiq);
+  document.getElementById('frsAt55').textContent    = fmt(meta.FRS_AT_55);
+  const ptGrossAtRetire = (p.mBarista || 0) * Math.pow(1.03, p.retireYear - new Date().getFullYear());
+  const ptCPF = partTimeCPF(ptGrossAtRetire, p.retireYear - p.birthYear, p.ptType);
+  document.getElementById('baristaInflAdj').textContent = ptGrossAtRetire > 0
+    ? fmt(ptGrossAtRetire) + (p.ptType === 'self' ? ' NTI' : ' gross') + ' → ' + fmt(ptGrossAtRetire - ptCPF.employee) + ' take-home'
+    : '—';
+  const cpfLifeTxt = m => '$' + Math.round(m).toLocaleString() + (p.cpflifeEscalating ? '/mo initial (+2%/yr)' : '/mo');
+  document.getElementById('cpflifePayout').textContent =
+    cpfLifeTxt(meta.cpflifeMo) + ' (no work) · ' + cpfLifeTxt(results.barista._meta.cpflifeMo) + ' (part-time)';
 
-  // ON TRACK / SHORTFALL: driven by simulation result (ground truth).
-  // The simulation uses the exact same parameters as the table, so this is always consistent.
-  const baristaGood = !Object.keys(lastBarista)
-    .some(y => parseInt(y) >= p.retireYear && lastBarista[y].liquid < 0);
-  const chubbyGood  = !Object.keys(lastChubby)
-    .some(y => parseInt(y) >= p.retireYear && lastChubby[y].liquid  < 0);
+  // SRS tax check (part-time scenario is the worst case): 50% of SRS draw is chargeable,
+  // plus part-time wages net of employee CPF. CPF LIFE is tax-exempt. Reliefs ignored.
+  const ptDuringSRS = (p.baristaStopYear || 9999) >= meta.YR_SRS_ST && p.mBarista > 0
+    ? (() => { const g = p.mBarista * Math.pow(1.03, meta.YR_SRS_ST - new Date().getFullYear());
+               return 12 * (g - partTimeCPF(g, meta.YR_SRS_ST - p.birthYear, p.ptType).employee); })() : 0;
+  const chg = 0.5 * meta.srsAnnualDraw + ptDuringSRS;
+  const srsTaxRow = meta.srsAnnualDraw <= 0
+    ? ['SRS Tax Check', 'No SRS balance at withdrawal age', '']
+    : chg > 20000
+      ? ['⚠ SRS Tax Check', fmt(chg) + '/yr chargeable (50% SRS' + (ptDuringSRS > 0 ? ' + part-time' : '') + ') > $20k tax-free band', 'warn']
+      : ['SRS Tax Check', fmt(chg) + '/yr chargeable — within $20k 0% band', 'ok'];
 
-  // Gap = how much more (or less) liquid you have vs the FIRE number target
-  const gapB = projLiq - fireB;
-  const gapC = projLiq - fireC;
-
-  // Fire numbers
-  document.getElementById('fireBarista').textContent = fmt(fireB);
-  document.getElementById('fireChubby').textContent  = fmt(fireC);
-  document.getElementById('projLiquid').textContent  = fmt(projLiq);
-  document.getElementById('frsAt55').textContent     = fmt(meta.FRS_AT_55);
-  const baristaInflAdj = (p.mBarista || 0) * Math.pow(1.03, p.retireYear - new Date().getFullYear());
-  document.getElementById('baristaInflAdj').textContent = fmt(baristaInflAdj) + '/mo';
-  const cpfLifeLabel = p.cpflifeEscalating
-    ? '$' + Math.round(meta.cpflifeMo).toLocaleString() + '/mo initial (+2%/yr)'
-    : '$' + Math.round(meta.cpflifeMo).toLocaleString() + '/mo fixed';
-  document.getElementById('cpflifePayout').textContent = cpfLifeLabel;
-
-  const gbEl = document.getElementById('gapBarista');
-  gbEl.textContent  = (baristaGood ? '✓ ON TRACK +' : '✗ SHORTFALL ') + fmt(Math.abs(gapB));
-  gbEl.className    = 'fire-gap ' + (baristaGood ? 'ok' : 'miss');
-
-  const gcEl = document.getElementById('gapChubby');
-  gcEl.textContent  = (chubbyGood ? '✓ ON TRACK +' : '✗ SHORTFALL ') + fmt(Math.abs(gapC));
-  gcEl.className    = 'fire-gap ' + (chubbyGood ? 'ok' : 'miss');
-
-  // Milestones
+  const oaTxt = y => y === meta.YR_RA ? y + ' — OA moves to RA/liquid at 55; mortgage paid from liquid'
+    : y ? (y < p.retireYear
+      ? y + ' — before retirement; mortgage shortfall paid from liquid'
+      : y + ' — mortgage shifts to liquid') : 'Never — OA covers the mortgage';
   const ml = document.getElementById('milestones');
   ml.innerHTML = '';
   const rows = [
     ['Retirement Year', p.retireYear + ' (age ' + (p.retireYear - p.birthYear) + ')', 'ok'],
-    ['OA Depletes', meta.oaDepletedYear ? meta.oaDepletedYear + ' — mortgage shifts to liquid' : 'Before retirement', 'warn'],
+    ...(!p.monthlySalary ? [['⚠ Salary', 'No salary entered — no CPF contributions modelled', 'warn']] : []),
+    ['OA Runs Out (no work)', oaTxt(meta.oaDepletedYear), 'warn'],
+    ['OA Runs Out (part-time)', oaTxt(results.barista._meta.oaDepletedYear), 'warn'],
     ['Stop SRS Contributions', (p.srsStopYear || p.retireYear) + ' (age ' + ((p.srsStopYear || p.retireYear) - p.birthYear) + ')', 'warn'],
-    ['Stop Barista Income', p.baristaStopYear + ' (age ' + (p.baristaStopYear - p.birthYear) + ')', 'warn'],
+    ['Stop Part-time Work', p.baristaStopYear ? p.baristaStopYear + ' (age ' + (p.baristaStopYear - p.birthYear) + ')' : 'Never', 'warn'],
     ['CPF OA+SA → RA (age 55)', meta.YR_RA + ' · FRS ' + fmt(meta.FRS_AT_55), ''],
-    ['SRS Withdrawal Starts (age 62)', meta.YR_SRS_ST + ' · spread over 10 yrs', ''],
+    ['SRS Withdrawal Starts (age ' + p.srsWithdrawAge + ')', meta.YR_SRS_ST + ' · ' + fmt(meta.srsAnnualDraw) + '/yr for 10 yrs', ''],
+    srsTaxRow,
     ['Mortgage Ends', p.mortgageEndYear + ' (age ' + (p.mortgageEndYear - p.birthYear) + ')', 'warn'],
-    ['CPF LIFE Starts (age 65)', meta.YR_CPFLIFE + ' · +$' + Math.round(meta.cpflifeMo).toLocaleString() + '/mo income', 'ok'],
-    ['SRS Fully Withdrawn (age 72)', (p.birthYear + 72) + '', ''],
+    ['CPF LIFE Starts (age 65)', meta.YR_CPFLIFE + ' · +' + cpfLifeTxt(meta.cpflifeMo) + ' income', 'ok'],
+    ['Final SRS Draw (age ' + (meta.YR_SRS_END - p.birthYear) + ')', meta.YR_SRS_END + '', ''],
+    ...meta.lumpNotes.map(n => ['⚠ Lump Sum', n, 'warn']),
   ];
-  rows.forEach(([k,v,cls]) => {
+  rows.forEach(([k, v, cls]) => {
     const li = document.createElement('li');
     li.innerHTML = `<span class="mk">${k}</span><span class="mv ${cls}">${v}</span>`;
     ml.appendChild(li);
   });
 
   renderTable(currentScenario);
-  updateChart(p, fireB, fireC);
+  updateChart(p);
 }
 
 function switchTab(sc, btn) {
   currentScenario = sc;
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.scen-tab').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  if (lastBarista) renderTable(sc);
+  if (results[sc]) { renderTable(sc); if (currentChartTab === 'breakdown') updateChart(lastParams); }
 }
 
 function renderTable(sc) {
-  const data = sc === 'barista' ? lastBarista : lastChubby;
+  const data = results[sc];
   if (!data) return;
-  const meta = lastBarista._meta;
-  const p = getParams();
-
+  const meta = data._meta;
+  const p = lastParams;
   const SIM_START = new Date().getFullYear();
   const SIM_END   = p.birthYear + 95;
   const tbody = document.getElementById('projBody');
   tbody.innerHTML = '';
 
-  const showYears = new Set();
-  for (let y = SIM_START; y <= SIM_END; y++) showYears.add(y); // show all
-
   for (let y = SIM_START; y <= SIM_END; y++) {
     const r = data[y];
     if (!r) continue;
-
-    // Only show certain years to keep table readable
-    const isKey = [SIM_START, p.retireYear, meta.YR_RA, meta.YR_SRS_ST, meta.YR_CPFLIFE, p.birthYear+72, p.birthYear+75, p.birthYear+80, p.birthYear+85, p.birthYear+90, p.birthYear+95].includes(y)
-      || (y % 5 === 0)
-      || (meta.oaDepletedYear && y === meta.oaDepletedYear);
+    const isKey = [SIM_START, p.retireYear, meta.YR_RA, meta.YR_SRS_ST, meta.YR_CPFLIFE, meta.YR_SRS_END,
+                   p.birthYear+75, p.birthYear+80, p.birthYear+85, p.birthYear+90, p.birthYear+95].includes(y)
+      || (y % 5 === 0) || (meta.oaDepletedYear && y === meta.oaDepletedYear);
     if (!isKey) continue;
 
     const tr = document.createElement('tr');
@@ -919,11 +1021,9 @@ function renderTable(sc) {
     if (y === meta.YR_CPFLIFE)  tags += '<span class="tag life">CPF LIFE</span>';
     if (meta.oaDepletedYear && y === meta.oaDepletedYear) tags += '<span class="tag oadep">OA depletes</span>';
 
-    const negCls = (v) => v < 0 ? ' class="neg"' : '';
-
-    // Liquid draw: positive = withdrawing (red), negative = reinvesting (green)
+    const negCls = v => v < 0 ? ' class="neg"' : '';
     const drawVal = r.annualLiquidDraw || 0;
-    const drawFmt = drawVal === 0
+    const drawFmt = Math.abs(drawVal) < 1
       ? '<span style="color:var(--muted)">—</span>'
       : drawVal > 0
         ? `<span style="color:var(--danger)">-${fmt(drawVal)}</span>`
@@ -932,7 +1032,6 @@ function renderTable(sc) {
     const otherFmt = otherInc > 0
       ? `<span style="color:var(--accent2)">${fmt(otherInc)}</span>`
       : '<span style="color:var(--muted)">—</span>';
-
     const raCell = r.raConverted
       ? `<span style="color:var(--muted)">${fmt(r.ra)} <span style="font-size:10px;color:var(--warn)">→ CPF LIFE</span></span>`
       : fmt(r.ra);
@@ -944,6 +1043,7 @@ function renderTable(sc) {
       <td>${fmt(r.srs)}</td>
       <td>${fmt(r.oa)}</td>
       <td>${fmt(r.sa)}</td>
+      <td>${fmt(r.ma || 0)}</td>
       <td>${raCell}</td>
       <td${negCls(r.total)}>${fmt(r.total)}</td>
       <td>${drawFmt}</td>
@@ -958,7 +1058,6 @@ function renderTable(sc) {
 let fireChart = null;
 let currentChartTab = 'trajectory';
 
-// Custom plugin: vertical event lines
 const eventLinesPlugin = {
   id: 'eventLines',
   afterDraw(chart) {
@@ -987,74 +1086,52 @@ const eventLinesPlugin = {
 };
 Chart.register(eventLinesPlugin);
 
-function buildChartData(p, fireB, fireC) {
-  const SIM_END = p.birthYear + 95;
-  const years = [];
-  const bLiquid = [], cLiquid = [], bTotal = [], cTotal = [];
-  const bSRS = [], bOA = [], bSA = [], bRA = [];
-
-  for (let y = new Date().getFullYear(); y <= SIM_END; y++) {
-    const rb = lastBarista[y], rc = lastChubby[y];
-    if (!rb || !rc) continue;
-    years.push(y);
-    bLiquid.push(rb.liquid / 1e3);
-    cLiquid.push(rc.liquid / 1e3);
-    bTotal.push(rb.total / 1e3);
-    cTotal.push(rc.total / 1e3);
-    bSRS.push(rb.srs / 1e3);
-    bOA.push(rb.oa / 1e3);
-    bSA.push(rb.sa / 1e3);
-    bRA.push(rb.ra / 1e3);
-  }
-
-  const events = [
-    { year: p.retireYear,         label: 'Retire',   color: 'rgba(82,217,160,0.6)' },
-    { year: p.birthYear + 55,     label: 'Age 55',   color: 'rgba(108,143,255,0.5)' },
-    { year: p.srsStopYear || p.retireYear, label: 'Stop SRS', color: 'rgba(160,120,255,0.5)' },
-    { year: p.baristaStopYear,    label: 'Stop Barista', color: 'rgba(245,166,35,0.5)' },
-    { year: p.birthYear + 65,     label: 'Age 65',   color: 'rgba(224,92,92,0.5)' },
+function chartYears(p) {
+  const ys = [];
+  for (let y = new Date().getFullYear(); y <= p.birthYear + 95; y++) if (results.regular[y]) ys.push(y);
+  return ys;
+}
+function chartEvents(p) {
+  return [
+    { year: p.retireYear,                   label: 'Retire',     color: 'rgba(82,217,160,0.6)' },
+    { year: p.birthYear + 55,               label: 'Age 55',     color: 'rgba(108,143,255,0.5)' },
+    { year: p.srsStopYear || p.retireYear,  label: 'Stop SRS',   color: 'rgba(160,120,255,0.5)' },
+    { year: p.baristaStopYear,              label: 'Stop work',  color: 'rgba(245,166,35,0.5)' },
+    { year: p.birthYear + 65,               label: 'Age 65',     color: 'rgba(224,92,92,0.5)' },
   ];
+}
+const hexA = (hex, a) => { const n = parseInt(hex.slice(1), 16); return `rgba(${n>>16},${(n>>8)&255},${n&255},${a})`; };
 
-  return { years, bLiquid, cLiquid, bTotal, cTotal, bSRS, bOA, bSA, bRA, events, fireB, fireC };
+function renderTrajectoryChart(p) {
+  const years = chartYears(p);
+  const datasets = [];
+  SCENARIOS.forEach(s => {
+    datasets.push({ label: `${s.emoji} ${s.name} — Liquid`, data: years.map(y => results[s.key][y].liquid / 1e3),
+      borderColor: s.color, borderWidth: 2, pointRadius: 0, tension: 0.3, fill: false });
+  });
+  SCENARIOS.forEach(s => {
+    datasets.push({ label: `🎯 ${s.name} target`, data: years.map(() => fires[s.key] / 1e3),
+      borderColor: hexA(s.color, 0.45), borderDash: [8,4], borderWidth: 1, pointRadius: 0, fill: false });
+  });
+  return { type: 'line', data: { labels: years, datasets }, options: chartOptions('SGD (thousands)', chartEvents(p)) };
 }
 
-function renderTrajectoryChart(data) {
-  const { years, bLiquid, cLiquid, bTotal, cTotal, events, fireB, fireC } = data;
-  const fireBLine = years.map(() => fireB / 1e3);
-  const fireCLine = years.map(() => fireC / 1e3);
-
+function renderBreakdownChart(p) {
+  const years = chartYears(p);
+  const d = results[currentScenario];
+  const layer = (label, key, color, fill) => ({ label, data: years.map(y => (d[y][key] || 0) / 1e3),
+    borderColor: color, backgroundColor: hexA(color, 0.22), fill, borderWidth: 1.5, pointRadius: 0, tension: 0.3, stack: 'a' });
   return {
     type: 'line',
-    data: {
-      labels: years,
-      datasets: [
-        { label: '☕ Barista — Total NW',  data: bTotal,    borderColor: '#52d9a0', backgroundColor: 'rgba(82,217,160,0.08)', fill: true,  borderWidth: 2, pointRadius: 0, tension: 0.3 },
-        { label: '🍾 Chubby — Total NW',   data: cTotal,    borderColor: '#6c8fff', backgroundColor: 'rgba(108,143,255,0.08)', fill: true, borderWidth: 2, pointRadius: 0, tension: 0.3 },
-        { label: '☕ Barista — Liquid',     data: bLiquid,   borderColor: '#52d9a0', borderDash: [5,3], borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: false },
-        { label: '🍾 Chubby — Liquid',      data: cLiquid,   borderColor: '#6c8fff', borderDash: [5,3], borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: false },
-        { label: '🎯 Barista FIRE number',  data: fireBLine, borderColor: 'rgba(82,217,160,0.4)',  borderDash: [8,4], borderWidth: 1, pointRadius: 0, fill: false },
-        { label: '🎯 Chubby FIRE number',   data: fireCLine, borderColor: 'rgba(108,143,255,0.4)', borderDash: [8,4], borderWidth: 1, pointRadius: 0, fill: false },
-      ]
-    },
-    options: chartOptions('SGD (thousands)', events)
-  };
-}
-
-function renderBreakdownChart(data) {
-  const { years, bLiquid, bSRS, bOA, bSA, bRA, events } = data;
-  return {
-    type: 'line',
-    data: {
-      labels: years,
-      datasets: [
-        { label: 'Liquid Portfolio', data: bLiquid, borderColor: '#52d9a0', backgroundColor: 'rgba(82,217,160,0.25)', fill: 'origin', borderWidth: 1.5, pointRadius: 0, tension: 0.3, stack: 'a' },
-        { label: 'SRS',              data: bSRS,    borderColor: '#f5a623', backgroundColor: 'rgba(245,166,35,0.2)',  fill: '-1',     borderWidth: 1.5, pointRadius: 0, tension: 0.3, stack: 'a' },
-        { label: 'CPF OA',           data: bOA,     borderColor: '#aab4f5', backgroundColor: 'rgba(170,180,245,0.2)', fill: '-1',    borderWidth: 1.5, pointRadius: 0, tension: 0.3, stack: 'a' },
-        { label: 'CPF SA',           data: bSA,     borderColor: '#9b7fe8', backgroundColor: 'rgba(155,127,232,0.2)', fill: '-1',    borderWidth: 1.5, pointRadius: 0, tension: 0.3, stack: 'a' },
-        { label: 'CPF RA',           data: bRA,     borderColor: '#e05c5c', backgroundColor: 'rgba(224,92,92,0.2)',  fill: '-1',     borderWidth: 1.5, pointRadius: 0, tension: 0.3, stack: 'a' },
-      ]
-    },
-    options: chartOptions('SGD (thousands)', events)
+    data: { labels: years, datasets: [
+      layer('Liquid Portfolio', 'liquid', '#52d9a0', 'origin'),
+      layer('SRS',    'srs', '#f5a623', '-1'),
+      layer('CPF OA', 'oa',  '#aab4f5', '-1'),
+      layer('CPF SA', 'sa',  '#9b7fe8', '-1'),
+      layer('CPF MA', 'ma',  '#5cc8e0', '-1'),
+      layer('CPF RA', 'ra',  '#e05c5c', '-1'),
+    ]},
+    options: chartOptions(`SGD (thousands) · ${SC[currentScenario].name}`, chartEvents(p))
   };
 }
 
@@ -1065,27 +1142,16 @@ function chartOptions(yLabel, events) {
     interaction: { mode: 'index', intersect: false },
     animation: { duration: 400 },
     plugins: {
-      legend: {
-        position: 'bottom',
-        labels: { color: '#8892a4', boxWidth: 14, padding: 12, font: { size: 11 } }
-      },
+      legend: { position: 'bottom', labels: { color: '#8892a4', boxWidth: 14, padding: 10, font: { size: 11 } } },
       tooltip: {
-        backgroundColor: '#1a1d27',
-        borderColor: '#2e3248',
-        borderWidth: 1,
-        titleColor: '#e2e8f0',
-        bodyColor: '#8892a4',
-        callbacks: {
-          label: ctx => ` ${ctx.dataset.label}: $${ctx.parsed.y >= 0 ? '' : '-'}${Math.abs(ctx.parsed.y).toFixed(0)}K`
-        }
+        backgroundColor: '#1a1d27', borderColor: '#2e3248', borderWidth: 1,
+        titleColor: '#e2e8f0', bodyColor: '#8892a4',
+        callbacks: { label: ctx => ` ${ctx.dataset.label}: $${ctx.parsed.y >= 0 ? '' : '-'}${Math.abs(ctx.parsed.y).toFixed(0)}K` }
       },
-      eventLines: false  // handled via plugin registration above
+      eventLines: false
     },
     scales: {
-      x: {
-        ticks: { color: '#8892a4', maxTicksLimit: 12, font: { size: 11 } },
-        grid:  { color: 'rgba(46,50,72,0.6)' }
-      },
+      x: { ticks: { color: '#8892a4', maxTicksLimit: 12, font: { size: 11 } }, grid: { color: 'rgba(46,50,72,0.6)' } },
       y: {
         title: { display: true, text: yLabel, color: '#8892a4', font: { size: 11 } },
         ticks: { color: '#8892a4', font: { size: 11 }, callback: v => '$' + v.toLocaleString() + 'K' },
@@ -1096,12 +1162,8 @@ function chartOptions(yLabel, events) {
   };
 }
 
-function updateChart(p, fireB, fireC) {
-  const data = buildChartData(p, fireB, fireC);
-  const config = currentChartTab === 'trajectory'
-    ? renderTrajectoryChart(data)
-    : renderBreakdownChart(data);
-
+function updateChart(p) {
+  const config = currentChartTab === 'trajectory' ? renderTrajectoryChart(p) : renderBreakdownChart(p);
   if (fireChart) {
     fireChart.data    = config.data;
     fireChart.options = config.options;
@@ -1119,9 +1181,10 @@ function switchChartTab(tab, btn) {
   currentChartTab = tab;
   document.querySelectorAll('#ctab-traj, #ctab-break').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  if (lastBarista) updateChart(lastParams, lastFireB, lastFireC);
+  if (results.regular) updateChart(lastParams);
 }
 
+SCENARIOS.forEach(s => { document.getElementById('lbl-' + s.key).textContent = s.emoji + ' ' + s.name; });
 // Run on load — restore saved profile if present, then calculate
 loadProfile();
 recalc();
